@@ -1,0 +1,553 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Consts",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "timeBefore",
+                            "actorType": {
+                                "parentType": "Now",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "dataset",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "babynames"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "table",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "names_2014"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "batchSize",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "integer"
+                                        },
+                                        "const": 1000
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Log Time + Read From BQ",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "logTimeBefore",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "BigQueryRead",
+                            "actorType": {
+                                "parentType": "BigQueryRead",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    },
+                                    {
+                                        "name": "filter",
+                                        "const": "name is not null"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "result",
+                                        "schema": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
+                                                    "count": {
+                                                        "type": "integer"
+                                                    },
+                                                    "assigned_sex_at_birth": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Loop Records",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "Record",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "const": null
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "assigned_sex_at_birth": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Count",
+                            "actorType": {
+                                "parentType": "Count",
+                                "inputs": [],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "FirstNames1",
+                            "actorType": {
+                                "parentType": "FirstNames",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Mask First Name",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "MaskingWithCollection1",
+                            "actorType": {
+                                "parentType": "MaskingWithCollection",
+                                "inputs": [
+                                    {
+                                        "name": "maskingId",
+                                        "const": "1"
+                                    },
+                                    {
+                                        "name": "interface",
+                                        "const": "IN-MEMORY"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "New Record",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "NewRecordMap",
+                            "actorType": {
+                                "parentType": "ArrayToMap",
+                                "inputs": [
+                                    {
+                                        "name": "keys",
+                                        "const": [
+                                            "name",
+                                            "count",
+                                            "assigned_sex_at_birth"
+                                        ]
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "map",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "assigned_sex_at_birth": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Write To BQ",
+                    "dependsOnList": [],
+                    "isLast": 1,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "BigQueryWrite",
+                            "actorType": {
+                                "parentType": "BigQueryWrite",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    },
+                                    {
+                                        "name": "batchSize",
+                                        "const": null
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Time After",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "timeAfter",
+                            "actorType": {
+                                "parentType": "Now",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Log #Records & Time",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "LogRecordsCount",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "logTimeAfter",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "connections": [
+        {
+            "leftPort": {
+                "actor": "timeBefore",
+                "name": "date"
+            },
+            "rightPort": {
+                "actor": "logTimeBefore",
+                "name": "message"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryRead",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryRead",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "batchSize",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite",
+                "name": "batchSize"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "BigQueryRead",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Record",
+                "name": "value"
+            },
+            "iterate": "Iterate"
+        },
+        {
+            "leftPort": {
+                "actor": "Record",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "MaskingWithCollection1",
+                "name": "value"
+            },
+            "path": [
+                "name"
+            ]
+        },
+        {
+            "leftPort": {
+                "actor": "Record",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "NewRecordMap",
+                "name": "values"
+            },
+            "path": [
+                "count"
+            ],
+            "arrayPosition": 1
+        },
+        {
+            "leftPort": {
+                "actor": "Record",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "NewRecordMap",
+                "name": "values"
+            },
+            "path": [
+                "assigned_sex_at_birth"
+            ],
+            "arrayPosition": 2
+        },
+        {
+            "leftPort": {
+                "actor": "Count",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "LogRecordsCount",
+                "name": "message"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "FirstNames1",
+                "name": "strings"
+            },
+            "rightPort": {
+                "actor": "MaskingWithCollection1",
+                "name": "collection"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "MaskingWithCollection1",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "NewRecordMap",
+                "name": "values"
+            },
+            "arrayPosition": 0
+        },
+        {
+            "leftPort": {
+                "actor": "NewRecordMap",
+                "name": "map"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite",
+                "name": "data"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "timeAfter",
+                "name": "date"
+            },
+            "rightPort": {
+                "actor": "logTimeAfter",
+                "name": "message"
+            }
+        }
+    ]
+}

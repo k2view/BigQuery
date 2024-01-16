@@ -1,0 +1,107 @@
+{
+    "type": "BigQueryRead",
+    "badge": "BQ",
+    "doc": [
+        "This actor performs read against BigQuery database.",
+        "Row-level filtering is supported using the 'filter' input.",
+        "Number of returned records limitation is supported using 'limit' input."
+    ],
+    "inputs": [
+        {
+            "const": "",
+            "name": "interface",
+            "schema": {},
+            "editor": {
+                "id": "com.k2view.interface",
+                "interfaceType": [
+                    "BigQuery"
+                ],
+                "interfaces": []
+            },
+            "mandatory": true,
+            "doc": [
+                "The custom interface name. ",
+                "The interface must be defined with the below: ",
+                "- IoProvider function=bigQueryIoProvider",
+                "- Tech Category=BigQuery"
+            ]
+        },
+        {
+            "name": "dataset",
+            "schema": {
+                "type": "string"
+            },
+            "mandatory": true,
+            "doc": [
+                "The dataset to read from."
+            ]
+        },
+        {
+            "name": "table",
+            "schema": {
+                "type": "string"
+            },
+            "mandatory": true,
+            "doc": [
+                "The table to read from."
+            ]
+        },
+        {
+            "name": "fields",
+            "const": [],
+            "schema": {
+                "type": "array",
+                "items": {}
+            },
+            "mandatory": false,
+            "isDefault": true,
+            "doc": [
+                "Array of column names to be selected from the BigQuery table.",
+		"Fields names should be concatenated by comma.",
+		"Default is empty array meaning select all columns.",
+		"Examples:",
+		"- [\"name\",\"count\"]."
+            ]
+        },
+        {
+            "const": "",
+            "name": "filter",
+            "schema": {
+                "type": "string"
+            },
+            "mandatory": false,
+            "doc": [
+                "A filter string to be used when reading from BigQuery, default is no filter.",
+                "Examples:",
+                "- customer_name is not null",
+                "- customer_name='Paula' and city='NY'"
+            ]
+        },
+        {
+            "const": 0,
+            "name": "limit",
+            "schema": {
+                "type": "integer"
+            },
+            "mandatory": false,
+            "doc": [
+                "A limit integer used when reading the records from BigQuery, default is 0, meaning no limit.",
+                "In case the limit integer in provided and is bigger than 0, the actor keeps reading records until the limit number is reached. "
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "result",
+            "schema": {},
+            "doc": [
+                "A result set (virtual array) containing the rows. Each row contains a Map with the results.",
+                "You can access the map using the column name or the column index, with 0 being the first column."
+            ]
+        }
+    ],
+    "actorClass": "com.k2view.cdbms.usercode.common.BigQuery.BigQueryRead",
+    "tags": [
+        "db"
+    ]
+}

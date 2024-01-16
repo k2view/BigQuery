@@ -26,7 +26,8 @@
         "/opt/apps/fabric/workspace/fabric/lib/fabric/guava*.jar",
 		"/opt/apps/fabric/workspace/fabric/lib/fabric/cron-utils*.jar",
         "/opt/apps/fabric/workspace/fabric/lib/provided/*.jar",
-        "lib/*.jar"
+        "lib/*.jar",
+        "/opt/apps/fabric/workspace/fabric/lib/fabric/*.jar"
     ],
     "java.project.outputPath": ".studioWeb/java/bin",
     "java.project.sourcePaths": [
@@ -79,7 +80,7 @@
 		"**/Templates": true,
 		"**/Environments": false,
 		"ItemsProperties.k2projItems.xml": true,
-		"*.k2proj": true
+		"*.k2proj": false
 	},
     "files.watcherExclude": {
         "**/.git/objects/**": true,

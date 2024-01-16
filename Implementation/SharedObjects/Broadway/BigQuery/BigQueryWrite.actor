@@ -1,0 +1,105 @@
+{
+    "type": "BigQueryWrite",
+    "badge": "BQ",
+    "doc": [
+        "This actor inserts data into BigQuery database.",
+        "It accumulates load activities and perform them as a batch for better performance.",
+        "Actor must be put in a transaction stage."
+    ],
+    "inputs": [
+        {
+            "const": "",
+            "name": "interface",
+            "schema": {},
+            "editor": {
+                "id": "com.k2view.interface",
+                "interfaceType": [
+                    "BigQuery"
+                ],
+                "interfaces": []
+            },
+            "mandatory": true,
+            "doc": [
+                "The custom interface name. ",
+                "The interface must be defined with the below: ",
+                "- IoProvider function=bigQueryIoProvider",
+                "- Tech Category=BigQuery"
+            ]
+        },
+        {
+            "name": "dataset",
+            "schema": {
+                "type": "string"
+            },
+            "mandatory": true,
+            "doc": [
+                "The dataset to write the data into."
+            ]
+        },
+        {
+            "name": "table",
+            "schema": {
+                "type": "string"
+            },
+            "mandatory": true,
+            "doc": [
+                "The table to write the data into."
+            ]
+        },
+        {
+            "name": "data",
+            "schema": {
+                "type": "object"
+            },
+            "mandatory": true,
+            "doc": [
+                "The row (map) to write."
+            ]
+        },
+        {
+            "const": 1000,
+            "name": "batchSize",
+            "schema": {
+                "type": "integer"
+            },
+            "mandatory": false,
+            "doc": [
+                "The size of the batch."
+            ]
+        },
+        {
+            "name": "streamType",
+            "const": "",
+            "schema": {
+                "type": "string"
+            },
+            "editor": {
+                "id": "com.k2view.dropdown",
+                "options": [
+                    "DEFAULT",
+                    "PENDING"
+                ]
+            },
+            "mandatory": true,
+            "doc": [
+                "DEFAULT - a batch will be committed immediately upon its completion, regardless of any failures in previous batches. The last batch, if incomplete, will be committed at the end of the transaction.",
+                "PENDING - all batches will be committed at the end of the transaction, and only in case no errors occured in any of the batches."
+            ]
+        }
+    ],
+    "outputs": [
+        {
+            "name": "affected",
+            "schema": {
+                "type": "integer"
+            },
+            "doc": [
+                "Will always be 1, unless an error occurs. However, since the insertion to Big Query is delayed, the number should not be relied on."
+            ]
+        }
+    ],
+    "tags": [
+        "db"
+    ],
+    "actorClass": "com.k2view.cdbms.usercode.common.BigQuery.BigQueryWrite"
+}

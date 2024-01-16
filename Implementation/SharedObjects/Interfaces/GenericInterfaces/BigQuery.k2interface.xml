@@ -1,0 +1,27 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<GenericInterface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="CUSTOM" displayName="" enabled="true" version="1.4">
+    <Name>BigQuery</Name>
+    <Properties>
+        <Property name="Host">
+            <Value></Value>
+        </Property>
+        <Property name="Port">
+            <Value>0</Value>
+        </Property>
+        <Property name="User">
+            <Value></Value>
+        </Property>
+        <Property name="Password">
+            <Value></Value>
+        </Property>
+        <Property name="Data">
+            <Value>{&quot;ProjectId&quot;:&quot;k2view-coe&quot;,&quot;OAuthPvtKeyPath&quot;:&quot;C:\\gcp-bigquery\\k2view-coe-cb81dc8507f8.json&quot;}</Value>
+        </Property>
+        <Property name="ioprovider">
+            <Value>bigQueryIoProvider</Value>
+        </Property>
+        <Property name="TechType">
+            <Value></Value>
+        </Property>
+    </Properties>
+</GenericInterface>

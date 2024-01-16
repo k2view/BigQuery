@@ -1,0 +1,215 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Consts",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "timeBefore",
+                            "actorType": {
+                                "parentType": "Now",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "datasetId",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "babynames"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "tableName",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "names_2014"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Format Statement",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "TruncateStatement",
+                            "actorType": {
+                                "parentType": "StringFormat",
+                                "inputs": [
+                                    {
+                                        "name": "format",
+                                        "const": "TRUNCATE TABLE ${0}.${1}"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "LogTimeBefore",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Truncate table",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "BigQueryCommand1",
+                            "actorType": {
+                                "parentType": "BigQueryCommand",
+                                "inputs": [],
+                                "outputs": [
+                                    {
+                                        "name": "result",
+                                        "schema": {
+                                            "type": "array",
+                                            "items": {}
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "timeAfter",
+                            "actorType": {
+                                "parentType": "Now",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Log Time After",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": false,
+                    "actors": [
+                        {
+                            "name": "LogTimeAfter",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "connections": [
+        {
+            "leftPort": {
+                "actor": "timeBefore",
+                "name": "date"
+            },
+            "rightPort": {
+                "actor": "LogTimeBefore",
+                "name": "message"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "datasetId",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "TruncateStatement",
+                "name": "params"
+            },
+            "arrayPosition": 0
+        },
+        {
+            "leftPort": {
+                "actor": "tableName",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "TruncateStatement",
+                "name": "params"
+            },
+            "arrayPosition": 1
+        },
+        {
+            "leftPort": {
+                "actor": "TruncateStatement",
+                "name": "string"
+            },
+            "rightPort": {
+                "actor": "BigQueryCommand1",
+                "name": "statement"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "timeAfter",
+                "name": "date"
+            },
+            "rightPort": {
+                "actor": "LogTimeAfter",
+                "name": "message"
+            }
+        }
+    ]
+}

@@ -1,0 +1,635 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Stage 1",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "babyname",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "baby_1"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "babyGender",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "M"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "babycount",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "number"
+                                        },
+                                        "const": 1
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "number"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "project",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "k2view-coe"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "dataset",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "public_data"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "table",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "mobile_data_2015_2017"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Stage 3",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "BigQueryRead1",
+                            "isDisabled": true,
+                            "actorType": {
+                                "parentType": "BigQueryRead",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    },
+                                    {
+                                        "name": "limit",
+                                        "const": 1
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "result",
+                                        "schema": {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                    "fterm": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "parent": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "fi": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "examiner": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "kind_code": {
+                                                        "type": "string"
+                                                    },
+                                                    "application_number_formatted": {
+                                                        "type": "string"
+                                                    },
+                                                    "pct_number": {
+                                                        "type": "string"
+                                                    },
+                                                    "grant_date": {
+                                                        "type": "integer"
+                                                    },
+                                                    "inventor_harmonized": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "country_code": {
+                                                                    "type": "string"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "cpc": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "code": {
+                                                                    "type": "string"
+                                                                },
+                                                                "tree": {
+                                                                    "type": "array",
+                                                                    "items": {}
+                                                                },
+                                                                "inventive": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "first": {
+                                                                    "type": "boolean"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "publication_date": {
+                                                        "type": "integer"
+                                                    },
+                                                    "locarno": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "inventor": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "art_unit": {
+                                                        "type": "string"
+                                                    },
+                                                    "ipc": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "code": {
+                                                                    "type": "string"
+                                                                },
+                                                                "tree": {
+                                                                    "type": "array",
+                                                                    "items": {}
+                                                                },
+                                                                "inventive": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "first": {
+                                                                    "type": "boolean"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "claims_localized_html": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "family_id": {
+                                                        "type": "string"
+                                                    },
+                                                    "spif_application_number": {
+                                                        "type": "string"
+                                                    },
+                                                    "spif_publication_number": {
+                                                        "type": "string"
+                                                    },
+                                                    "application_kind": {
+                                                        "type": "string"
+                                                    },
+                                                    "citation": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "claims_localized": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "description_localized_html": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "filing_date": {
+                                                        "type": "integer"
+                                                    },
+                                                    "uspc": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "priority_claim": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "npl_text": {
+                                                                    "type": "string"
+                                                                },
+                                                                "filing_date": {
+                                                                    "type": "integer"
+                                                                },
+                                                                "publication_number": {
+                                                                    "type": "string"
+                                                                },
+                                                                "application_number": {
+                                                                    "type": "string"
+                                                                },
+                                                                "type": {
+                                                                    "type": "string"
+                                                                },
+                                                                "category": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "abstract_localized": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "truncated": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "language": {
+                                                                    "type": "string"
+                                                                },
+                                                                "text": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "country_code": {
+                                                        "type": "string"
+                                                    },
+                                                    "priority_date": {
+                                                        "type": "integer"
+                                                    },
+                                                    "title_localized": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "truncated": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "language": {
+                                                                    "type": "string"
+                                                                },
+                                                                "text": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "publication_number": {
+                                                        "type": "string"
+                                                    },
+                                                    "description_localized": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    },
+                                                    "application_number": {
+                                                        "type": "string"
+                                                    },
+                                                    "assignee": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "entity_status": {
+                                                        "type": "string"
+                                                    },
+                                                    "assignee_harmonized": {
+                                                        "type": "array",
+                                                        "items": {
+                                                            "type": "object",
+                                                            "properties": {
+                                                                "country_code": {
+                                                                    "type": "string"
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    "child": {
+                                                        "type": "array",
+                                                        "items": {}
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "BigQueryCommand1",
+                            "actorType": {
+                                "parentType": "BigQueryCommand",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    },
+                                    {
+                                        "name": "sql",
+                                        "const": "SELECT * FROM ${@projectId}.${@dataset}.${@table} where date >= '2019-01-01' LIMIT 1;"
+                                    },
+                                    {
+                                        "name": "projectId",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "mandatory": false
+                                    },
+                                    {
+                                        "name": "dataset",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "mandatory": false
+                                    },
+                                    {
+                                        "name": "table",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "mandatory": false
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Stage 4",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "BigQueryWrite1",
+                            "isDisabled": true,
+                            "actorType": {
+                                "parentType": "BigQueryWrite",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    },
+                                    {
+                                        "name": "streamType",
+                                        "const": "DEFAULT"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Stage 5",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "Logger1",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "connections": [
+        {
+            "leftPort": {
+                "actor": "project",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryCommand1",
+                "name": "projectId"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryRead1",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryCommand1",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryRead1",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryCommand1",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "BigQueryRead1",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Logger1",
+                "name": "message"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "BigQueryRead1",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "data"
+            },
+            "iterate": "Iterate"
+        },
+        {
+            "leftPort": {
+                "actor": "BigQueryCommand1",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "data"
+            },
+            "iterate": "Iterate"
+        },
+        {
+            "leftPort": {
+                "actor": "BigQueryCommand1",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Logger1",
+                "name": "message"
+            },
+            "iterate": "Iterate"
+        }
+    ]
+}

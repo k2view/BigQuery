@@ -1,0 +1,58 @@
+{
+    "type": "BigQueryCommand",
+    "badge": "BQ",
+    "doc": [
+        "This actor executes any command on BigQuery. ",
+        "Transactions are not supported, i.e. all commands will be executed immediately and cannot be rolled back."
+    ],
+    "inputs": [
+        {
+            "name": "interface",
+            "const": "",
+            "editor": {
+                "id": "com.k2view.interface",
+                "interfaceType": [
+                    "BigQuery"
+                ],
+                "interfaces": []
+            },
+            "doc": [
+                "The custom interface name. ",
+                "The interface must be defined with the below: ",
+                "- IoProvider function=bigQueryIoProvider",
+                "- Tech Category=BigQuery"
+            ],
+            "schema": {
+                "type": "string"
+            }
+        },
+        {
+            "name": "sql",
+            "const": ""
+        },
+        {
+            "name": "params",
+            "schema": {
+                "type": "array",
+                "items": {}
+            }
+        }
+    ],
+    "outputs": [
+        {
+            "name": "result",
+            "schema": {
+                "type": "array"
+            },
+            "doc": [
+                "A result set (virtual array) containing the rows. Each row contains a Map with the results.",
+                "You can access the map using the column name or the column index, with 0 being the first column."
+            ]
+        }
+    ],
+    "tags": [
+        "db"
+    ],
+    "parentType": "DbCommand",
+    "actorClass": "com.k2view.cdbms.usercode.common.BigQuery.BigQueryCommand"
+}

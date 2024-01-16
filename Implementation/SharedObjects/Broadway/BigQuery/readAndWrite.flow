@@ -1,0 +1,338 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Consts",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "Before Read/Write",
+                            "actorType": {
+                                "parentType": "Now",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "dataset",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "babynames"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "table",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "names_2014"
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Log time + Read From BQ",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "timeBefore",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "BigQueryRead1",
+                            "actorType": {
+                                "parentType": "BigQueryRead",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Loop Records",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "Record",
+                            "actorType": {
+                                "parentType": "Const",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "const": null
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "object",
+                                            "properties": {
+                                                "name": {
+                                                    "type": "string"
+                                                },
+                                                "count": {
+                                                    "type": "integer"
+                                                },
+                                                "assigned_sex_at_birth": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "name": "Count",
+                            "actorType": {
+                                "parentType": "Count",
+                                "inputs": [],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "integer"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Write To BQ",
+                    "dependsOnList": [],
+                    "isLast": 1,
+                    "isTransactional": true,
+                    "actors": [
+                        {
+                            "name": "BigQueryWrite1",
+                            "actorType": {
+                                "parentType": "BigQueryWrite",
+                                "inputs": [
+                                    {
+                                        "name": "interface",
+                                        "const": "BigQuery"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Time After",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "timeAfter",
+                            "actorType": {
+                                "parentType": "Now",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Log #Records & Time",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "LogRecordsCount",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "logTimeAfter",
+                            "actorType": {
+                                "parentType": "Logger",
+                                "inputs": [
+                                    {
+                                        "name": "level",
+                                        "const": "info"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "connections": [
+        {
+            "leftPort": {
+                "actor": "Before Read/Write",
+                "name": "date"
+            },
+            "rightPort": {
+                "actor": "timeBefore",
+                "name": "message"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryRead1",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "dataset",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "dataset"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryRead1",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "table",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "table"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "BigQueryRead1",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Record",
+                "name": "value"
+            },
+            "iterate": "Iterate"
+        },
+        {
+            "leftPort": {
+                "actor": "Record",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "BigQueryWrite1",
+                "name": "data"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "Count",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "LogRecordsCount",
+                "name": "message"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "timeAfter",
+                "name": "date"
+            },
+            "rightPort": {
+                "actor": "logTimeAfter",
+                "name": "message"
+            }
+        }
+    ]
+}
