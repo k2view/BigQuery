@@ -1,0 +1,4 @@
+Implementation/SharedObjects/Java/src/com/k2view/cdbms/usercode/common/BigQuery
+Implementation/SharedObjects/Interfaces/GenericInterfaces/BigQuery.k2interface.xml
+Implementation/SharedObjects/Broadway/BigQuery
+lib
