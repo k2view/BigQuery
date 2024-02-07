@@ -19,7 +19,10 @@ The actor utilizes BigQuery Storage API to write data to a BigQuery table.
 3. **The interface must be a custom interface whose "IoProvider Function" property is set to "bigQueryIoProvider" and "Tech Type" property is set (manually) to "BigQuery". The "Data" property should hold a map of this structure:
   {"ProjectId":"k2view-coe","OAuthPvtKeyPath":"C:\\gcp-bigquery\\k2view-coe-cb81dc8507f8.json"}** 
 - The authentication json file (specified in OAuthPvtKeyPath) should hold the connection credentials to BigQuery (used when opening the connection).
-  
+
+### Change Log
+[Open change log file](/api/k2view/bigquery/0.0.3/file/CHANGELOG.md)
+
 ### License
-[Open license file](/api/k2view/bigquery/0.0.1/file/LICENSE.txt)
+[Open license file](/api/k2view/bigquery/0.0.3/file/LICENSE.txt)
 

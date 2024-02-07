@@ -119,5 +119,6 @@
 		}
 	},
 	"terminal.integrated.defaultProfile.linux": "bash",
-	"redhat.telemetry.enabled": false	
+    "redhat.telemetry.enabled": false,
+    "java.compile.nullAnalysis.mode": "disabled"
 }

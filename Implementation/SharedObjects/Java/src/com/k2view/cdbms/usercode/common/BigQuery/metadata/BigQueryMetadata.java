@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.k2view.cdbms.usercode.common.BigQuery.BigQueryCommandIoSession;
 import com.k2view.cdbms.usercode.common.BigQuery.BigQueryReadIoSession;
 import com.k2view.discovery.schema.io.IoMetadata;
+import com.k2view.discovery.schema.io.SnapshotDataset;
 import com.k2view.discovery.schema.model.Category;
 import com.k2view.discovery.schema.model.DataPlatform;
 import com.k2view.discovery.schema.model.Property;
@@ -384,7 +385,7 @@ public class BigQueryMetadata implements IoMetadata {
 
 
     @Override
-    public BigQuerySnapshot snapshotDataset(String dataset, String schema, SampleSize size, boolean fetchNulls) {
+    public BigQuerySnapshot snapshotDataset(String dataset, String schema, SampleSize size, Map<String, Object> map) {
         return new BigQuerySnapshot(commandSession, readSession, dataset, schema, size);
     }
 

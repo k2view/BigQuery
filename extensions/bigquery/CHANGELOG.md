@@ -4,6 +4,7 @@ All notable changes to the "BigQuery" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## 0.0.4 - 07/02/2024
 
-- Initial release
+- new icon
+- update readme file
