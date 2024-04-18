@@ -27,6 +27,7 @@ import java.util.*;
 import static com.google.cloud.bigquery.Field.Mode.REPEATED;
 import static com.k2view.fabric.common.ParamConvertor.toBuffer;
 
+@SuppressWarnings("all")
 public class BigQueryParamParser {
     private static final Log log = Log.a(BigQueryParamParser.class);
 
@@ -84,7 +85,7 @@ public class BigQueryParamParser {
             case JSON:
                 return JsonObject.class;
             case INTERVAL:
-                // TODO Handle interval
+                // TO-DO Handle interval
                 return Interval.class;
         }
         throw new IllegalArgumentException("Unsupported StandardSQLTypeName type " + type);
@@ -128,7 +129,7 @@ public class BigQueryParamParser {
     }
 
     public static QueryParameterValue parseToBqParam(Object param) {
-        // TODO Array?, Clob?
+        // TO-DO Array?, Clob?
         if (param instanceof String) {
             return QueryParameterValue.string((String) param);
         }
@@ -312,7 +313,7 @@ public class BigQueryParamParser {
             instant = instant.plusNanos(nanoseconds);
             return instant;
         } else if ("timestamp-millis".equalsIgnoreCase(logicalTypeString)){
-            // TODO check if reachable
+            // TO-DO check if reachable
             log.error("convertGenericData: Cannot parse timestamp " + value + ": Not supported");
             throw new RuntimeException();
         } else if("decimal".equalsIgnoreCase(logicalTypeString)) {

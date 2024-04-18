@@ -17,6 +17,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static com.k2view.cdbms.usercode.common.BigQuery.BigQueryParamParser.*;
 
+@SuppressWarnings("all")
 public class BigQueryCommandIoSession extends AbstractIoSession {
 	private final Log log = Log.a(this.getClass());
 	private final AtomicReference<String> credentialsFilePath = new AtomicReference<>();
@@ -153,7 +154,7 @@ public class BigQueryCommandIoSession extends AbstractIoSession {
 
 			@Override
 			public int rowsAffected() {
-				// TODO Find a way to calc num of effected rows
+				// TO-DO Find a way to calc num of effected rows
 				return -1;
 			}
 		}

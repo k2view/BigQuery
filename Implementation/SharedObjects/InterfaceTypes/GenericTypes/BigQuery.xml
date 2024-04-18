@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GenericInterfaces>
+	<Interfaces>
+		<Interface type="BigQuery" displayName="BigQuery" enabled="true" version="1.0" category="Others" techType="database">
+			<Properties>
+                <Property name="OAuthPvtKeyPath" displayName="OAuth Private Key Path" dataType="string" mandatory="true" readOnly="false" category="">
+					<DefaultValue></DefaultValue>
+					<Comments>Path to private key file</Comments>
+				</Property>
+                <Property name="ProjectId" displayName="Project Id" dataType="string" mandatory="false" readOnly="false" category="">
+					<DefaultValue></DefaultValue>
+					<Comments>BigQuery project id</Comments>
+				</Property>
+				<Property name="ioprovider" displayName="IoProvider Function" dataType="string" mandatory="true" readOnly="true" category="Advanced" disabledOnEnvOverride="true">
+					<DefaultValue>bigQueryIoProvider</DefaultValue>
+					<Comments>Function name that returns IoProvider</Comments>
+				</Property>
+				<Property name="delegate" displayName="" dataType="string" mandatory="false" readOnly="true" category="Advanced" disabledOnEnvOverride="true">
+					<DefaultValue></DefaultValue>
+					<Comments/>
+				</Property>
+			</Properties>
+		</Interface>
+	</Interfaces>
+</GenericInterfaces>

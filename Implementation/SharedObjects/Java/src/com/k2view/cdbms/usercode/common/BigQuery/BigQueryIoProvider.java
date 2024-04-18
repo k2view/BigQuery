@@ -2,6 +2,7 @@ package com.k2view.cdbms.usercode.common.BigQuery;
 
 import com.k2view.fabric.common.Json;
 import com.k2view.fabric.common.Log;
+import com.k2view.fabric.common.ParamConvertor;
 import com.k2view.fabric.common.io.IoProvider;
 import com.k2view.fabric.common.io.IoSession;
 
@@ -22,9 +23,8 @@ public class BigQueryIoProvider implements IoProvider {
     @Override
     public IoSession createSession(String interfaceName, Map<String, Object> map) {
         // Get Data property set in the interface from input map
-        Map<String,Object> data = Json.get().fromJson(map.get("Data").toString());
-        String projectId = data.get("ProjectId").toString();
-        String credentialFilePath = data.get("OAuthPvtKeyPath").toString();
+        String projectId = ParamConvertor.toString(map.get("ProjectId"));
+        String credentialFilePath = ParamConvertor.toString(map.get("OAuthPvtKeyPath"));;
         map.putIfAbsent(OPERATION_PARAM_NAME, DEFAULT_OPERATION);
         // Validate that Operation is READ/WRITE/COMMAND
         if (!(map.get(OPERATION_PARAM_NAME) instanceof Operation)) {

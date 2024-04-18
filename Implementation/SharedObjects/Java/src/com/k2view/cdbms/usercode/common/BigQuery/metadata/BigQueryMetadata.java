@@ -50,7 +50,7 @@ public class BigQueryMetadata implements IoMetadata {
     private Set<String> schemasInclude = new HashSet<>();
     private Map<String, List<String>> tablesInclude = new HashMap<>();
 
-    // TODO replace with Util
+    // TO-DO replace with Util
     private Set<String> initSchemaWBList(List<String> items) {
         return items.stream()
                 .filter(i -> !i.contains("."))
@@ -58,7 +58,7 @@ public class BigQueryMetadata implements IoMetadata {
                 .collect(Collectors.toSet());
     }
 
-    // TODO replace with Util
+    // TO-DO replace with Util
     private Map<String, List<String>> initTableWBList(List<String> items) {
         return items.stream()
                 .filter(i -> i.contains(".") && !i.endsWith(".*"))

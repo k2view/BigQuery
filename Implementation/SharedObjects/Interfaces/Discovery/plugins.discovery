@@ -14,6 +14,7 @@
          "data_platform_2": {
            "include_list": ["main.PATIENT","main.INVOICE"]
          },
+         "BigQuery": {},
          "description": "<interface_1>/<interface_2> are placeholders for interface name defined in Studio. The <exclude_list> filter excludes schemas in the format: <schema> and tables in the format <schema>.<table> or *.<table>. The <include_list> filter includes only schemas in the format: <schema>, and tables in the format: <schema>.<table> or *.<table>"
 
        },
