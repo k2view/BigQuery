@@ -35,7 +35,7 @@ public class BigQuerySnapshot implements SnapshotDataset {
 
     @Override
     @SuppressWarnings("unchecked")
-    public Stream<DatasetEntry> fetch() throws Exception {
+    public Iterator<Map<String, Object>> fetch() throws Exception {
         final long limit = getLimit();
         Map<String, Object> executeParams = new HashMap<>();
         executeParams.put(BigQueryReadIoSession.INPUT_DATASET, schema);
@@ -45,29 +45,7 @@ public class BigQuerySnapshot implements SnapshotDataset {
         Util.safeClose(readResult);
         this.readResult = readStatement.execute(executeParams);
         Iterator<IoCommand.Row> iterator = readResult.iterator();
-        return StreamSupport.stream(new Spliterators.AbstractSpliterator<DatasetEntry>(Long.MAX_VALUE, Spliterator.ORDERED) {
-            @Override
-            public boolean tryAdvance(Consumer<? super DatasetEntry> action) {
-                return Util.rte(() -> {
-                    if (!iterator.hasNext()) {
-                        return false;
-                    }
-                    try{
-                        IoCommand.Row next = iterator.next();
-                        Map<String, String> rowMap = next.entrySet()
-                                .stream()
-                                .collect(Collectors.toMap(
-                                        Map.Entry::getKey,
-                                        e -> ParamConvertor.toString(e.getValue())));
-                        action.accept(new DatasetEntry(table, rowMap));
-                    } catch (Exception ex){
-                        log.error(ex);
-                        action.accept(new DatasetEntry(table, new HashMap<>()));
-                    }
-                    return true;
-                });
-            }
-        }, false);
+        return (Iterator<Map<String, Object>>)(Iterator<?>) iterator;
     }
 
     @Override

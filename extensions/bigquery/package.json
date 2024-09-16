@@ -3,10 +3,14 @@
     "displayName": "BigQuery",
     "description": "Fabric connector for BigQuery",
     "publisher": "K2View",
-    "version": "0.0.4",
-    "preview": true,
+    "version": "1.0.0",
+    "preview": false,
     "engines": {
         "vscode": "^1.79.0"
+    },
+    "config": {
+        "minRequiredFabricVersion": "8.1",
+        "confirmTargetLuForEachImportedLu": false
     },
     "categories": [
         "Other"

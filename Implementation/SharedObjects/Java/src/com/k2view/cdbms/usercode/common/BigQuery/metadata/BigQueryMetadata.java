@@ -311,7 +311,7 @@ public class BigQueryMetadata implements IoMetadata {
                                 schemaNode.dataset(pkTableName)
                                         .flatMap(dataset -> dataset.getNode().classNode(pkTableName))
                                         .ifPresent(pkTableClassNode -> ((ConcreteClassNode) pkTableClassNode)
-                                                .refersTo(constraintName, fkTableClassNode, 1.0D, CRAWLER, "", properties)
+                                                .refersTo(fkTableClassNode, fkColumns, pkColumns, 1.0D, CRAWLER, "", constraintName, properties)
                                         ));
             });
         }
