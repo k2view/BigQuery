@@ -21,8 +21,8 @@ public class BigQueryIoProvider implements IoProvider {
 
     private final Log log = Log.a(this.getClass());
     @Override
-    public IoSession createSession(String interfaceName, Map<String, Object> map) {
-        // Get Data property set in the interface from input map
+    public IoSession createSession(String ioProviderFunc, Map<String, Object> map) {
+        String interfaceName = (String) map.get("interface");
         String projectId = ParamConvertor.toString(map.get("ProjectId"));
         String credentialFilePath = ParamConvertor.toString(map.get("OAuthPvtKeyPath"));;
         map.putIfAbsent(OPERATION_PARAM_NAME, DEFAULT_OPERATION);

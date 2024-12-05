@@ -1,28 +1,32 @@
 # BigQuery Connector
-**Fabric version required: 7.2.1_103**
 
+**Note**: This version is compatible with Fabric v8.1.
+
+## Broadway Actors
 The extension provides 3 Broadway actors to integrate with Google's BigQuery:
-1. BigQueryRead - read data from a table in BigQuery DB.
-2. BigQueryWrite - write data to a table in BigQuery DB.  
+1. BigQueryRead - The actor utilizes BigQuery Storage API to read data from a BigQuery table.
+2. BigQueryWrite - The actor utilizes BigQuery Storage API to write data to a BigQuery table.
 3. BigQueryCommand - execute SQL commands (not optimized for reads/writes)
 
-If you want integration with BigQuery without Broadway, you can use the class BigQueryIoProvider to create a Read/Write/Command session.
-
-## BigQueryRead
-The actor utilizes BigQuery Storage API to read data from a BigQuery table.
-
-## BigQueryWrite
-The actor utilizes BigQuery Storage API to write data to a BigQuery table.
-**Note**:
+## Limitations:
 1. Updating an existing record is not supported. 
-2. **Actor must be put in a transaction stage.** The reason is, that the last batch will be written to BigQuery in the commit() method which is called only if the actor is in a transaction stage.
-3. **The interface must be a custom interface whose "IoProvider Function" property is set to "bigQueryIoProvider" and "Tech Type" property is set (manually) to "BigQuery". The "Data" property should hold a map of this structure:
-  {"ProjectId":"k2view-coe","OAuthPvtKeyPath":"C:\\gcp-bigquery\\k2view-coe-cb81dc8507f8.json"}** 
-- The authentication json file (specified in OAuthPvtKeyPath) should hold the connection credentials to BigQuery (used when opening the connection).
+2. BigQueryWrite Actor must be put in a transaction stage. The reason is, that the last batch will be written to BigQuery in the commit() method which is called only if the actor is in a transaction stage.
 
-### Change Log
-[Open change log file](/api/k2view/bigquery/0.0.3/file/CHANGELOG.md)
+## Change Log
 
-### License
-[Open license file](/api/k2view/bigquery/0.0.3/file/LICENSE.txt)
+### **v1.1.0**
+### Added
+- Support for discovery crawler job monitoring.
 
+### Changed
+- Introduced new interface type BigQuery. Now a BigQuery interface should be created only using this interface type and not via the Custom interface type.
+
+### Fixed
+- Data platform name in Catalog was appearing as `bigQueryIoProvider` instead of the interface name.
+- Add mandatory properties to the field node in Catalog: 
+    - Column size
+    - Sql data type
+    - Ordinal position
+
+### **v1.0.0**
+- Initial version
