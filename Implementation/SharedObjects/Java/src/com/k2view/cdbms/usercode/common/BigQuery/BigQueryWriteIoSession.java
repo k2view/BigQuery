@@ -2,8 +2,9 @@ package com.k2view.cdbms.usercode.common.BigQuery;
 
 import com.google.cloud.bigquery.storage.v1.TableName;
 import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
-import com.k2view.cdbms.usercode.common.BigQuery.metadata.BigQueryMetadata;
+import com.k2view.cdbms.usercode.common.BigQuery.BigQueryMetadata;
 import com.k2view.fabric.common.Log;
+import com.k2view.fabric.common.ParamConvertor;
 import com.k2view.fabric.common.io.AbstractIoSession;
 import com.k2view.fabric.common.io.IoCommand;
 import org.json.JSONArray;
@@ -169,7 +170,7 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 			}
 
 			// Take the default batch size if wasn't provided
-			long batchSize = input.get(INPUT_BATCH_SIZE) != null ? (long) input.get(INPUT_BATCH_SIZE) : 0;
+			long batchSize = ParamConvertor.toInteger(input.get(INPUT_BATCH_SIZE));
 			if (batchSize<=0) {
 				batchSize = DEFAULT_BATCH_SIZE;
 			}
@@ -199,7 +200,7 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T getMetadata(Map<String, Object> params) {
+	public <T> T getMetadata(Map<String, Object> params) throws Exception {
 		return (T) new BigQueryMetadata(interfaceName, credentialsFilePath, null, null, projectId, params);
 	}
 }

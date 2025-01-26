@@ -4,7 +4,7 @@ import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.bigquery.storage.v1.*;
-import com.k2view.cdbms.usercode.common.BigQuery.metadata.BigQueryMetadata;
+import com.k2view.cdbms.usercode.common.BigQuery.BigQueryMetadata;
 import com.k2view.fabric.common.IteratorTranslate;
 import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.AbstractIoSession;
@@ -163,7 +163,7 @@ public class BigQueryReadIoSession extends AbstractIoSession{
 
 	@Override
 	@SuppressWarnings("unchecked")
-	public <T> T getMetadata(Map<String, Object> params) {
+	public <T> T getMetadata(Map<String, Object> params) throws Exception {
 		return (T) new BigQueryMetadata(credentialsFilePath, interfaceName, null, this, projectId, params);
 	}
 }

@@ -1,0 +1,257 @@
+tags: BigQuery
+stages:
+  Inputs:
+    actors:
+      Where Claוse:
+        parent: Const
+        remark: The Where Cluase created based on the parameters when the task was
+          created/edited.
+        in:
+          value:
+            const: null
+            external: whereClause
+            schema: string
+        out:
+          value:
+            schema: string
+      Source Interface:
+        parent: Const
+        remark: The Source Interface
+        in:
+          value:
+            const: null
+            external: sourceInterface
+            schema: string
+        out:
+          value:
+            schema: string
+      Source Schema:
+        parent: Const
+        remark: The Source Schema
+        in:
+          value:
+            const: null
+            external: sourceSchema
+            schema: string
+        out:
+          value:
+            schema: string
+      Source Table Name:
+        parent: Const
+        remark: The ame of the source table.
+        in:
+          value:
+            const: null
+            external: sourceTableName
+            schema: string
+        out:
+          value:
+            schema: string
+      Query's Parameters Values as a String:
+        parent: Const
+        remark: A String including the list of  parameters sent for the query. The
+          values are separated by global - TDM_PARAMETERS_SEPARATOR
+        in:
+          value:
+            const: null
+            external: paramtersStr
+            schema: string
+        out:
+          value:
+            schema: string
+      Array of TheQuery's Parameters Values:
+        parent: Const
+        remark: An array with the values sent to the query.
+        in:
+          value:
+            const: null
+            external: queryParameters
+            schema: string
+        out:
+          value:
+            schema: string
+      Select Query Statement:
+        parent: Const
+        remark: The Sql statement including the where clause if exists to select the
+          data from source.
+        in:
+          value:
+            const: null
+            external: selectStatement
+            schema: string
+        out:
+          value:
+            schema: string
+      Count Query Statement:
+        parent: Const
+        remark: The Sql statement including the where clause if exists to count the
+          total number of records to be loaded.
+        in:
+          value:
+            const: null
+            external: countStatement
+            schema: string
+        out:
+          value:
+            schema: string
+  Assert No Filters:
+    actors:
+      Assert where is empty:
+        parent: JavaScript
+        in:
+          script:
+            const: |-
+              if (where != null && where.length > 0) {
+                  throw "Where clauses are not supported in Table Level Extract using BigQuery Storage API. Please use the other flow provided."
+              }
+          where:
+            link: Where Claוse/value
+            schema: string
+            mandatory: false
+  Execute Queries:
+    transactional: false
+    actors:
+      Get count Indicator:
+        parent: MTableLookup
+        in:
+          mtable:
+            const: TableLevelInterfaces
+          interface_name:
+            external: sourceInterface
+            schema: string
+            editor:
+              id: com.k2view.mTableKey
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+          count_indicator:
+            schema: any
+      ExtractBQData:
+        parent: BigQueryRead
+        in:
+          interface:
+            const: null
+            link: Source Interface/value
+          dataset:
+            link: Source Schema/value
+          table:
+            link: Source Table Name/value
+        out:
+          result:
+            external: result
+            schema: '#ref'
+  Count Total Records:
+    else: false
+    transactional: false
+    dependsOn: Execute Queries
+    actors:
+      Count Records?:
+        parent: NotEquals
+        condition: result
+        in:
+          a:
+            link: Get count Indicator/count_indicator
+            schema: string
+          b:
+            const: 'false'
+            schema: string
+      BQCountRecords:
+        parent: DbCommand
+        in:
+          interface:
+            const: null
+            link: Source Interface/value
+          sql:
+            const: SELECT COUNT(*) as cnt FROM `${@dataset}.${@table}`;
+          dataset:
+            link: Source Schema/value
+            schema: string
+            mandatory: false
+          table:
+            link: Source Table Name/value
+            schema: string
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+    split: '--------------------'
+  Do not Count:
+    else: true
+    transactional: false
+    dependsOn: Execute Queries
+    actors:
+      Dummy Count:
+        parent: Const
+        in:
+          value:
+            const: -1
+            schema: integer
+        out:
+          value:
+            external: tableCount
+            schema: integer
+  SetCountExternal:
+    dependsOn: Count Total Records
+    actors:
+      SetCount:
+        parent: JavaScript
+        in:
+          script:
+            const: o.cnt
+          o:
+            link:
+              path: BQCountRecords/result
+              iterate: First
+            schema: '#ref'
+            mandatory: false
+        out:
+          result:
+            external: tableCount
+            schema: integer
+    split: '--------------------'
+  N/A:
+    dependsOn: Do not Count
+schemas:
+  Get count Indicator.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        interface_name:
+          type: string
+        suppress_indicator:
+          type: string
+        truncate_indicator: {
+          }
+        count_indicator: {
+          }
+        order_flow: {
+          }
+        no_schema: {
+          }
+  ExtractBQData.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        assigned_sex_at_birth: {
+          }
+        count: {
+          }
+  BQCountRecords.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        f0_:
+          type: integer
+  SetCount.in.o:
+    type: array
+    items:
+      type: object
+      properties:
+        cnt:
+          type: integer

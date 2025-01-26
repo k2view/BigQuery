@@ -11,6 +11,10 @@
 					<DefaultValue></DefaultValue>
 					<Comments>BigQuery project id</Comments>
 				</Property>
+                <Property name="snapshotViaStorageApi" displayName="Use BigQuery Storage API for Data Snapshots" dataType="boolean" mandatory="true" readOnly="false" category="Catalog Settings">
+					<DefaultValue>false</DefaultValue>
+					<Comments></Comments>
+				</Property>
 				<Property name="ioprovider" displayName="IoProvider Function" dataType="string" mandatory="true" readOnly="true" category="Advanced" disabledOnEnvOverride="true">
 					<DefaultValue>bigQueryIoProvider</DefaultValue>
 					<Comments>Function name that returns IoProvider</Comments>

@@ -58,16 +58,19 @@ public class DefaultWriteStream implements WriteStream {
         Path path = Paths.get(credentialFilePath);
         log.debug("path={}", path);
 
-        ServiceAccountCredentials credentials = ServiceAccountCredentials.fromStream(new FileInputStream(credentialFilePath));
+        try (FileInputStream credentialsStream = new FileInputStream(credentialFilePath)) {
+            ServiceAccountCredentials credentials = ServiceAccountCredentials.fromStream(credentialsStream);
+            this.bigQuery = BigQueryOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build().getService();
 
-        this.bigQuery = BigQueryOptions.newBuilder().setCredentials(credentials).build().getService();
+            BigQueryWriteSettings bigQueryWriteSettings = BigQueryWriteSettings
+                    .newBuilder()
+                    .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+                    .build();
 
-        BigQueryWriteSettings bigQueryWriteSettings = BigQueryWriteSettings
-                .newBuilder()
-                .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
-                .build();
+            this.bigQueryWriteClient = BigQueryWriteClient.create(bigQueryWriteSettings);
+        }
 
-        this.bigQueryWriteClient = BigQueryWriteClient.create(bigQueryWriteSettings);
+        
     }
 
     public void write(String dataset, String table, JSONArray rows) throws DescriptorValidationException, InterruptedException, IOException {

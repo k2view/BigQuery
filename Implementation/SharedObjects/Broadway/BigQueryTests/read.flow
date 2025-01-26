@@ -1,0 +1,115 @@
+tags: BigQuery
+stages:
+  Consts:
+    actors:
+      timeBefore:
+        parent: Now
+      dataset:
+        parent: Const
+        in:
+          value:
+            const: babynames
+            schema: string
+        out:
+          value:
+            schema: string
+      table:
+        parent: Const
+        in:
+          value:
+            const: with_foreign_key
+            schema: string
+        out:
+          value:
+            schema: string
+      ReadingLog:
+        parent: Logger
+        in:
+          message:
+            const: Reading data
+          level:
+            const: info
+  Log Time + Read From BQ:
+    actors:
+      logTimeBefore:
+        parent: Logger
+        in:
+          level:
+            const: info
+          message:
+            link: timeBefore/date
+      BigQueryRead1:
+        parent: BigQueryRead
+        in:
+          interface:
+            const: BigQuery
+          limit:
+            const: 10
+          dataset:
+            link: dataset/value
+          table:
+            link: table/value
+        out:
+          result:
+            schema: '#ref'
+  Loop Records:
+    last: 1
+    transactional: false
+    actors:
+      Record:
+        parent: Const
+        in:
+          value:
+            const: null
+            link:
+              path: BigQueryRead1/result
+              iterate: Iterate
+        out:
+          value:
+            schema: '#ref'
+      Count:
+        parent: Count
+        out:
+          value:
+            schema: integer
+  Time After:
+    actors:
+      timeAfter:
+        parent: Now
+  'Log #Records & Time':
+    actors:
+      LogRecordsCount:
+        parent: Logger
+        in:
+          level:
+            const: info
+          message:
+            link: Count/value
+      logTimeAfter:
+        parent: Logger
+        in:
+          level:
+            const: info
+          message:
+            link: timeAfter/date
+schemas:
+  BigQueryRead1.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        assigned_sex_at_birth: {
+          }
+        count: {
+          }
+  Record.out.value:
+    type: object
+    properties:
+      name:
+        type: string
+      count:
+        type: integer
+      assigned_sex_at_birth:
+        type: string

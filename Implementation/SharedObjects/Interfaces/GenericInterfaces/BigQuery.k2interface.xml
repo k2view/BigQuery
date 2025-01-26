@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<GenericInterface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="BigQuery" displayName="" enabled="true" version="1.4">  <Name>BigQuery</Name>
+<GenericInterface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="BigQuery" displayName="" enabled="true" version="1.4">
+    <Name>BigQuery</Name>
     <Properties>
         <Property name="OAuthPvtKeyPath">
             <Value>/opt/apps/fabric/workspace/project/project-resources/k2view-coe-cb81dc8507f8.json</Value>
         </Property>
         <Property name="ProjectId">
             <Value>k2view-coe</Value>
+        </Property>
+        <Property name="snapshotViaStorageApi">
+            <Value>false</Value>
         </Property>
         <Property name="ioprovider">
             <Value>bigQueryIoProvider</Value>

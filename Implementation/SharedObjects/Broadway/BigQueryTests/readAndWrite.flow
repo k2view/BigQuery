@@ -1,0 +1,142 @@
+tags: BigQuery
+stages:
+  Consts:
+    actors:
+      Before Read/Write:
+        parent: Now
+      dataset:
+        parent: Const
+        in:
+          value:
+            const: babynames
+            schema: string
+        out:
+          value:
+            schema: string
+      table:
+        parent: Const
+        in:
+          value:
+            const: names_2014
+            schema: string
+        out:
+          value:
+            schema: string
+  Log time + Read From BQ:
+    actors:
+      timeBefore:
+        parent: Logger
+        in:
+          level:
+            const: info
+          message:
+            link: Before Read%2FWrite/date
+      BigQueryRead1:
+        parent: BigQueryRead
+        in:
+          interface:
+            const: BigQuery
+          limit:
+            const: 1
+          dataset:
+            link: dataset/value
+          table:
+            link: table/value
+        out:
+          result:
+            schema: '#ref'
+  Loop Records:
+    transactional: true
+    actors:
+      Record:
+        parent: Const
+        in:
+          value:
+            const: null
+            link:
+              path: BigQueryRead1/result
+              iterate: Iterate
+        out:
+          value:
+            schema: '#ref'
+      Count:
+        parent: Count
+        out:
+          value:
+            schema: integer
+  Stage 1:
+    transactional: true
+    actors:
+      MapCreate1:
+        parent: MapCreate
+        in:
+          my_name:
+            link: Record/value/name
+            schema: string
+            mandatory: false
+        out:
+          map:
+            schema: '#ref'
+  Write To BQ:
+    last: 1
+    transactional: true
+    actors:
+      BigQueryWrite1:
+        parent: BigQueryWrite
+        in:
+          interface:
+            const: BigQuery
+          table:
+            const: with_foreign_key
+          streamType:
+            const: DEFAULT
+          dataset:
+            link: dataset/value
+          data:
+            link: MapCreate1/map
+  Time After:
+    actors:
+      timeAfter:
+        parent: Now
+  'Log #Records & Time':
+    actors:
+      LogRecordsCount:
+        parent: Logger
+        in:
+          level:
+            const: info
+          message:
+            link: Count/value
+      logTimeAfter:
+        parent: Logger
+        in:
+          level:
+            const: info
+          message:
+            link: timeAfter/date
+schemas:
+  BigQueryRead1.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        assigned_sex_at_birth: {
+          }
+        count: {
+          }
+  Record.out.value:
+    type: object
+    properties:
+      name:
+        type: string
+      count:
+        type: integer
+      assigned_sex_at_birth:
+        type: string
+  MapCreate1.out.map:
+    type: object
+    properties:
+      my_name:
+        type: string

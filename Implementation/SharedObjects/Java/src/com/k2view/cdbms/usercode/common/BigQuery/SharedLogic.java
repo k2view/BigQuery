@@ -24,7 +24,7 @@ import static com.k2view.cdbms.shared.user.ProductFunctions.*;
 import static com.k2view.cdbms.shared.user.UserCode.*;
 import static com.k2view.cdbms.shared.utils.UserCodeDescribe.FunctionType.*;
 
-@SuppressWarnings({"unused", "DefaultAnnotationParam"})
+@SuppressWarnings({"all"})
 public class SharedLogic {
 	@type(CustomIoProvider)
 	@out(name = "ioProvider", type = IoProvider.class, desc = "")

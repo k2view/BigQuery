@@ -4,8 +4,8 @@
 	"version": 1,
 	"sample_size": {
 		"percentage": 10,
-		"min_size": 100,
-		"max_size": 10000
+		"min_size": 10,
+		"max_size": 100
 	 },
 	  "data_platforms":{
          "data_platform_1": {
@@ -14,7 +14,9 @@
          "data_platform_2": {
            "include_list": ["main.PATIENT","main.INVOICE"]
          },
-         "BigQuery": {},
+         "BigQuery": {
+            "include_list": []
+         },
          "description": "<interface_1>/<interface_2> are placeholders for interface name defined in Studio. The <exclude_list> filter excludes schemas in the format: <schema> and tables in the format <schema>.<table> or *.<table>. The <include_list> filter includes only schemas in the format: <schema>, and tables in the format: <schema>.<table> or *.<table>"
 
        },
@@ -22,7 +24,7 @@
 			"name": "Metadata Logical Reference",
 			"type": "plugin",
 			"class": "com.k2view.discovery.plugins.AddRelationsPlugin",
-			"active": true,
+			"active": false,
 			"threshold": 0.4,
 			"input_parameters": {
 			    "rules": {
@@ -65,7 +67,7 @@
 			"name": "Data Regex Classifier",
 			"type": "plugin",
 			"class": "com.k2view.discovery.plugins.DataProfilingPlugin",
-			"active": true,
+			"active": false,
 			"factor": 0.2,
 			"threshold": 0.4,
 			"input_parameters": {}
@@ -74,7 +76,7 @@
 			"name": "Metadata Regex Classifier",
 			"type": "plugin",
 			"class": "com.k2view.discovery.plugins.profiling.MetadataProfilingPlugin",
-			"active": true,
+			"active": false,
 			"factor": 0.2,
 			"threshold": 0.4,
 			"input_parameters": {}
@@ -83,7 +85,7 @@
 			"name": "Classification PII Marker",
 			"type": "plugin",
 			"class": "com.k2view.discovery.plugins.PIIAnalyzerPlugin",
-			"active": true,
+			"active": false,
 			"factor": 0.2,
 			"threshold": 0.2,
 			"input_parameters": {}
@@ -92,7 +94,7 @@
 			"name": "NULL Percentage",
 			"type": "plugin",
 			"class": "com.k2view.discovery.plugins.nulls.NullPercentagePlugin",
-			"active": true,
+			"active": false,
 			"factor": 0.2,
 			"threshold": 0.2,
 			"input_parameters": {}
@@ -105,6 +107,14 @@
 			"factor": 0.2,
 			"threshold": 0.4,
 			"input_parameters": {}
+		},
+        {
+		    "name": "Complex Field Parser",
+		    "class": "com.k2view.discovery.plugins.complexfield.ComplexFieldPlugin",
+		    "active": true,
+		    "monitor_desc": "Complex Field Parser",
+		    "input_parameters": {
+		   }
 		}
 	]
 }

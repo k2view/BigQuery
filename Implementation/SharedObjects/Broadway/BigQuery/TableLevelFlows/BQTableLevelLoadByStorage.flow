@@ -1,0 +1,140 @@
+tags: LoadFlows,BigQuery
+stages:
+  Inputs:
+    transactional: false
+    actors:
+      Target Interface:
+        parent: Const
+        remark: The target interface
+        in:
+          value:
+            const: null
+            external: targetInterface
+            schema: string
+        out:
+          value:
+            schema: string
+      Target Schema:
+        parent: Const
+        remark: The target Schema
+        in:
+          value:
+            const: null
+            external: targetSchema
+            schema: string
+        out:
+          value:
+            schema: string
+      Target Table Name:
+        parent: Const
+        remark: The name of the target table.
+        in:
+          value:
+            const: null
+            external: targetTable
+            schema: string
+        out:
+          value:
+            schema: string
+      'Table''s fields Names ':
+        parent: Const
+        in:
+          value:
+            const: null
+            external: fieldsArray
+            schema: '#ref'
+        out:
+          value:
+            schema: '#ref'
+      Input Records:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: inputRecords
+            schema: '#ref'
+        out:
+          value:
+            schema: '#ref'
+      Get Commit Size:
+        parent: FabricSetRead
+        in:
+          key:
+            const: TDM_REF_UPD_SIZE
+            default: false
+        out:
+          result:
+            schema: integer
+  Load Data To Target:
+    last: 1
+    transactional: true
+    actors:
+      Count Records:
+        parent: JavaScript
+        in:
+          script:
+            const: |-
+              var i = flowGlobals.recCount;
+              var result = false;
+              if (i == null) {
+                  i = 0;
+              }
+              flowGlobals.recCount = ++i;
+        out:
+          result:
+            schema: integer
+      BigQueryWrite1:
+        parent: BigQueryWrite
+        in:
+          interface:
+            const: null
+            link: Target Interface/value
+          batchSize:
+            const: null
+            link: Get Commit Size/result
+          streamType:
+            const: DEFAULT
+          dataset:
+            link: Target Schema/value
+          table:
+            link: Target Table Name/value
+          data:
+            link:
+              path: Input Records/value
+              iterate: Iterate
+  Return Current Count:
+    transactional: false
+    actors:
+      Count:
+        parent: JavaScript
+        in:
+          script:
+            const: flowGlobals.recCount;
+        out:
+          result:
+            external: result
+            schema: integer
+schemas:
+  Table's fields Names .in.value:
+    type: array
+    items:
+      type: string
+  Table's fields Names .out.value:
+    type: array
+    items:
+      type: string
+  Input Records.in.value:
+    type: array
+    items: {
+      }
+  Input Records.out.value:
+    type: array
+    items:
+      type: object
+      properties:
+        contract_ref_id:
+          type: integer
+        offer_ref_id:
+          type: integer
+        offer_contract_description:
+          type: string

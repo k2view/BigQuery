@@ -1,0 +1,2 @@
+interface_type,extract_flow,delete_flow,load_flow
+BigQuery,BQTableLevelExtractByQuery,BQTableLevelDelete,BQTableLevelLoadByStorage

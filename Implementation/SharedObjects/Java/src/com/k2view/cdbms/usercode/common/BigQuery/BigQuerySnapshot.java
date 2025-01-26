@@ -1,4 +1,4 @@
-package com.k2view.cdbms.usercode.common.BigQuery.metadata;
+package com.k2view.cdbms.usercode.common.BigQuery;
 
 import com.k2view.cdbms.usercode.common.BigQuery.BigQueryCommandIoSession;
 import com.k2view.cdbms.usercode.common.BigQuery.BigQueryReadIoSession;
@@ -18,6 +18,7 @@ import java.util.stream.StreamSupport;
 
 public class BigQuerySnapshot implements SnapshotDataset {
     private final BigQueryCommandIoSession commandSession;
+    private final BigQueryReadIoSession readSession;
     private final String table;
     private final String schema;
     private final SampleSize size;
@@ -27,31 +28,40 @@ public class BigQuerySnapshot implements SnapshotDataset {
 
     public BigQuerySnapshot(BigQueryCommandIoSession commandSession, BigQueryReadIoSession readSession, String table, String schema, SampleSize size) {
         this.commandSession = commandSession;
+        this.readSession = readSession;
         this.table = table;
         this.schema = schema;
         this.size = size;
-        this.readStatement = readSession.statement();
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Iterator<Map<String, Object>> fetch() throws Exception {
         final long limit = getLimit();
-        Map<String, Object> executeParams = new HashMap<>();
-        executeParams.put(BigQueryReadIoSession.INPUT_DATASET, schema);
-        executeParams.put(BigQueryReadIoSession.INPUT_TABLE, table);
-        executeParams.put(BigQueryReadIoSession.INPUT_LIMIT, limit);
-        log.debug("Fetching BigQuery snapshot with params={}", executeParams);
+        
         Util.safeClose(readResult);
-        this.readResult = readStatement.execute(executeParams);
+        Util.safeClose(readStatement);
+        if (commandSession.snapshotViaStorageApi) {
+            Map<String, Object> executeParams = new HashMap<>();
+            executeParams.put(BigQueryReadIoSession.INPUT_DATASET, schema);
+            executeParams.put(BigQueryReadIoSession.INPUT_TABLE, table);
+            executeParams.put(BigQueryReadIoSession.INPUT_LIMIT, limit);
+
+            log.debug("Fetching BigQuery snapshot via Storage Read API with params={}", executeParams);
+            this.readStatement = readSession.statement();
+            this.readResult = readStatement.execute(executeParams);
+        } else {
+            this.readStatement = commandSession.prepareStatement(String.format("select * from `%s.%s` limit ?", schema, table));
+            this.readResult = readStatement.execute(limit);
+        }
         Iterator<IoCommand.Row> iterator = readResult.iterator();
         return (Iterator<Map<String, Object>>)(Iterator<?>) iterator;
     }
 
     @Override
     public void close() throws Exception {
-        Util.safeClose(readStatement);
         Util.safeClose(readResult);
+        Util.safeClose(readStatement);
         readStatement = null;
         readResult = null;
     }
@@ -70,8 +80,9 @@ public class BigQuerySnapshot implements SnapshotDataset {
     }
 
     private long getNumberOfRows() throws Exception {
-        try (IoCommand.Statement statement = commandSession.statement()){
-            IoCommand.Result result = statement.execute(String.format("SELECT row_count FROM %s.__TABLES__ WHERE table_id = '%s'", schema, table));
+        try (
+            IoCommand.Statement statement = commandSession.prepareStatement(String.format("SELECT row_count FROM %s.__TABLES__ WHERE table_id = ?", schema)); 
+            IoCommand.Result result = statement.execute(table)){
             return (Long) result.firstValue();
         }
     }

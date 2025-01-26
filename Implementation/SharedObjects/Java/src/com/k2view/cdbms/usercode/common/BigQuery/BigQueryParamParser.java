@@ -1,10 +1,13 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
+import com.google.api.services.bigquery.model.StandardSqlDataType;
 import com.google.cloud.bigquery.*;
 import com.google.gson.JsonObject;
 import com.google.type.Interval;
 import com.k2view.fabric.common.ByteStream;
 import com.k2view.fabric.common.Log;
+import com.k2view.fabric.common.ParamConvertor;
+
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
@@ -17,6 +20,8 @@ import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Blob;
+import java.sql.Time;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -27,18 +32,18 @@ import java.util.*;
 import static com.google.cloud.bigquery.Field.Mode.REPEATED;
 import static com.k2view.fabric.common.ParamConvertor.toBuffer;
 
-@SuppressWarnings("all")
 public class BigQueryParamParser {
+    private static final String BQ_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSSSS";
+    private static final String BQ_TIME_FORMAT = "HH:mm:ss.SSSSSS";
     private static final Log log = Log.a(BigQueryParamParser.class);
 
     private BigQueryParamParser() {}
-    @SuppressWarnings("unchecked")
     private static QueryParameterValue iteratorToBqArray(Iterator<?> iterator) {
         if (iterator == null) {
             return null;
         }
 
-        List elementsList = new ArrayList<>();
+        List<Object> elementsList = new ArrayList<>();
         iterator.forEachRemaining(elementsList::add);
 
         if (elementsList.isEmpty()) {
@@ -75,11 +80,11 @@ public class BigQueryParamParser {
             case BYTES:
                 return byte[].class;
             case DATE:
-                return LocalDate.class;
+                return java.sql.Date.class;
             case STRUCT:
                 return Map.class;
             case TIMESTAMP:
-                return Instant.class;
+                return Timestamp.class;
             case DATETIME:
                 return LocalDateTime.class;
             case JSON:
@@ -110,11 +115,11 @@ public class BigQueryParamParser {
             return StandardSQLTypeName.ARRAY;
         } else if (byte[].class.isAssignableFrom(elementType)) {
             return StandardSQLTypeName.BYTES;
-        } else if (elementType == LocalTime.class) {
+        } else if (elementType == Time.class || elementType == LocalTime.class) {
             return StandardSQLTypeName.TIME;
-        } else if (elementType == Instant.class) {
+        } else if (elementType == Timestamp.class) {
             return StandardSQLTypeName.TIMESTAMP;
-        } else if (elementType == LocalDate.class) {
+        } else if (elementType == Date.class || elementType == LocalDate.class) {
             return StandardSQLTypeName.DATE;
         } else if (elementType == LocalDateTime.class) {
             return StandardSQLTypeName.DATETIME;
@@ -130,13 +135,11 @@ public class BigQueryParamParser {
 
     public static QueryParameterValue parseToBqParam(Object param) {
         // TO-DO Array?, Clob?
-        if (param instanceof String) {
-            return QueryParameterValue.string((String) param);
+        if (param instanceof String str) {
+            return QueryParameterValue.string(str);
         }
-        if (param instanceof Number) {
-            Number number = (Number)param;
-            if (number instanceof BigDecimal) {
-                BigDecimal bigDecimal = (BigDecimal)number;
+        if (param instanceof Number number) {
+            if (number instanceof BigDecimal bigDecimal) {
                 if (bigDecimal.scale() > 9) {
                     return QueryParameterValue.bigNumeric(bigDecimal);
                 }
@@ -153,36 +156,35 @@ public class BigQueryParamParser {
             }
             return QueryParameterValue.int64(number.intValue());
         }
-        if (param instanceof ByteStream) {
-            return QueryParameterValue.bytes(toBuffer(param));
+        if (param instanceof ByteStream byteStream) {
+            return QueryParameterValue.bytes(toBuffer(byteStream));
         }
-        if (param instanceof Iterable) {
-            Iterator<?> itr = ((Iterable)param).iterator();
-            return BigQueryParamParser.iteratorToBqArray(itr);
+        if (param instanceof Iterable<?> itr) {
+            return BigQueryParamParser.iteratorToBqArray(itr.iterator());
         }
-        if (param instanceof Boolean) {
-            return  QueryParameterValue.bool((Boolean) param);
+        if (param instanceof Boolean b) {
+            return  QueryParameterValue.bool(b);
         }
-        if (param instanceof byte[]) {
-            return QueryParameterValue.bytes((byte[]) param);
+        if (param instanceof byte[] bytes) {
+            return QueryParameterValue.bytes(bytes);
         }
-        if (param instanceof Instant) {
-            Instant instant = (Instant) param;
-            instant = instant.minusNanos(instant.getNano() - (instant.getNano()/1000L)*1000L);
-            long epochMicros = instant.getEpochSecond()*1_000_000 + instant.getNano()/1000;
+        if (param instanceof Timestamp timestamp) {
+            long epochMicros = timestamp.getTime() * 1_000 + (timestamp.getNanos() % 1_000_000) / 1_000;
             return QueryParameterValue.timestamp(epochMicros);
         }
-        if (param instanceof LocalTime){
-            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSSSSS");
-            LocalTime time = ((LocalTime) param).withNano(0);
-            return QueryParameterValue.time(time.format(timeFormatter));
+        if (param instanceof Time t) {
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern(BQ_TIME_FORMAT);
+            return QueryParameterValue.time(t.toLocalTime().format(timeFormatter));
         }
-        if (param instanceof LocalDate) {
+        if (param instanceof LocalTime t) {
+            DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern(BQ_TIME_FORMAT);
+            return QueryParameterValue.time(t.format(timeFormatter));
+        }
+        if (param instanceof LocalDate || param instanceof java.sql.Date) {
             return QueryParameterValue.date(param.toString());
         }
-        if (param instanceof LocalDateTime) {
-            DateTimeFormatter datetimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSS");
-            LocalDateTime dateTime = (LocalDateTime) param;
+        if (param instanceof LocalDateTime dateTime) {
+            DateTimeFormatter datetimeFormatter = DateTimeFormatter.ofPattern(BQ_DATETIME_FORMAT);
             return QueryParameterValue.dateTime(dateTime.format(datetimeFormatter));
         }
         if (param instanceof JsonObject) {
@@ -235,9 +237,9 @@ public class BigQueryParamParser {
                 case BYTES:
                     return fieldValue.getBytesValue();
                 case TIMESTAMP:
-                    return fieldValue.getTimestampInstant();
+                    return Timestamp.from(fieldValue.getTimestampInstant());
                 case DATE:
-                    return LocalDate.parse((String) fieldValue.getValue());
+                    return java.sql.Date.valueOf(fieldValue.getStringValue());
                 case TIME:
                     return LocalTime.parse((String) fieldValue.getValue());
                 case DATETIME:
@@ -297,8 +299,9 @@ public class BigQueryParamParser {
         } else {
             logicalTypeString = String.valueOf(logicalType.getName());
         }
-        if ("date".equalsIgnoreCase(logicalTypeString)){
-            return LocalDate.ofEpochDay((int)value);
+        if ("date".equalsIgnoreCase(logicalTypeString)) {
+            long epochDays = (int) value;
+            return new java.sql.Date(epochDays * 24L * 60 * 60 * 1000); // Convert days to milliseconds
         } else if ("datetime".equalsIgnoreCase(logicalTypeString)) {
             return LocalDateTime.parse(value.toString());
         } else if ("time-micros".equalsIgnoreCase(logicalTypeString)){
@@ -308,11 +311,13 @@ public class BigQueryParamParser {
             return LocalTime.ofSecondOfDay(((int) value) / 1000);
         } else if ("timestamp-micros".equalsIgnoreCase(logicalTypeString)) {
             long timestampInMicros = (Long) value;
-            int nanoseconds = (int) ((timestampInMicros % 1_000) * 1_000);
-            Instant instant = Instant.ofEpochMilli(timestampInMicros/1_000);
-            instant = instant.plusNanos(nanoseconds);
-            return instant;
-        } else if ("timestamp-millis".equalsIgnoreCase(logicalTypeString)){
+            long milliseconds = timestampInMicros / 1_000;
+            int nanoseconds = (int) (timestampInMicros % 1_000) * 1_000;
+        
+            Instant instant = Instant.ofEpochMilli(milliseconds).plusNanos(nanoseconds);
+            return Timestamp.from(instant);
+        }
+         else if ("timestamp-millis".equalsIgnoreCase(logicalTypeString)){
             // TO-DO check if reachable
             log.error("convertGenericData: Cannot parse timestamp " + value + ": Not supported");
             throw new RuntimeException();

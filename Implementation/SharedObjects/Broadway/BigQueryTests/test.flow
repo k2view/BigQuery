@@ -1,0 +1,99 @@
+tags: BigQueryTests
+stages:
+  Stage 1:
+    actors:
+      DbCommand1:
+        parent: DbCommand
+        in:
+          interface:
+            const: BigQuery
+          sql:
+            const: select * from babynames.names_2014 where (assigned_sex_at_birth
+              = 'M' AND count > '0');
+        out:
+          result:
+            schema: '#ref'
+schemas:
+  DbCommand1.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        billing_account_id:
+          type: string
+        service:
+          type: object
+          properties: {
+            }
+        sku:
+          type: object
+          properties: {
+            }
+        usage_start_time: {
+          }
+        usage_end_time: {
+          }
+        project:
+          type: object
+          properties: {
+            }
+        labels:
+          type: object
+          properties: {
+            }
+        system_labels:
+          type: object
+          properties: {
+            }
+        location:
+          type: object
+          properties: {
+            }
+        resource:
+          type: object
+          properties: {
+            }
+        tags:
+          type: object
+          properties: {
+            }
+        price:
+          type: object
+          properties: {
+            }
+        transaction_type:
+          type: string
+        seller_name:
+          type: string
+        export_time: {
+          }
+        cost:
+          type: number
+        currency:
+          type: string
+        currency_conversion_rate:
+          type: number
+        usage:
+          type: object
+          properties: {
+            }
+        credits:
+          type: object
+          properties: {
+            }
+        invoice:
+          type: object
+          properties: {
+            }
+        cost_type:
+          type: string
+        adjustment_info:
+          type: object
+          properties: {
+            }
+        cost_at_list:
+          type: number
+        subscription:
+          type: object
+          properties: {
+            }

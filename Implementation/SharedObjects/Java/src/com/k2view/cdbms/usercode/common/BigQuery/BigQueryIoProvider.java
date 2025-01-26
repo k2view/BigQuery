@@ -10,7 +10,7 @@ import java.util.Map;
 
 // The IoProvider is used to handle Big Query Read/Write
 public class BigQueryIoProvider implements IoProvider {
-    enum Operation {
+    public enum Operation {
         WRITE,
         READ,
         COMMAND
@@ -25,12 +25,12 @@ public class BigQueryIoProvider implements IoProvider {
         String interfaceName = (String) map.get("interface");
         String projectId = ParamConvertor.toString(map.get("ProjectId"));
         String credentialFilePath = ParamConvertor.toString(map.get("OAuthPvtKeyPath"));;
+        boolean snapshotViaStorageApi = ParamConvertor.toBool(map.get("snapshotViaStorageApi"));
+
         map.putIfAbsent(OPERATION_PARAM_NAME, DEFAULT_OPERATION);
         // Validate that Operation is READ/WRITE/COMMAND
-        if (!(map.get(OPERATION_PARAM_NAME) instanceof Operation)) {
-                throw new IllegalArgumentException(String.format("'%s' param must be of type %s", OPERATION_PARAM_NAME, Operation.class.getName()));
-        }
-        Operation operation = (Operation) map.get(OPERATION_PARAM_NAME);
+        // Not taking operation as is because of different class loader issue
+        Operation operation = Operation.valueOf(map.get(OPERATION_PARAM_NAME).toString());
         // Open READ/WRITE session based on Operation input, and pass the params extracted from Data property set in the interface
         if(Operation.READ == operation) {
             return new BigQueryReadIoSession(interfaceName, projectId,credentialFilePath);
@@ -39,7 +39,7 @@ public class BigQueryIoProvider implements IoProvider {
             return new BigQueryWriteIoSession(interfaceName, projectId, credentialFilePath);
         } else if (Operation.COMMAND == operation) {
             log.debug("Creating a BQ Command IoSession");
-            return new BigQueryCommandIoSession(interfaceName, credentialFilePath, projectId);
+            return new BigQueryCommandIoSession(interfaceName, credentialFilePath, projectId, snapshotViaStorageApi);
         }
         else {
             throw new IllegalArgumentException("Unsupported operation");

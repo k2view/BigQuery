@@ -15,10 +15,6 @@ public class BigQueryRead extends AbstractIoSession {
 
     @Override
     public void action(Data input, Data output, Context context) throws Exception {
-        // The BigQueryIoProvider must know which type of session
-        // to create - read or write
-        input.put(BigQueryIoProvider.OPERATION_PARAM_NAME, BigQueryIoProvider.Operation.READ);
-        // To create the session if
         super.action(input, output, context);
         this.result = this.execute(input);
         // Put the iterator rows
@@ -31,7 +27,10 @@ public class BigQueryRead extends AbstractIoSession {
     */
     @Override
     protected Map<String, Object> createSessionParams(Data input) {
+        // The BigQueryIoProvider must know which type of session
+        // to create - read or write
         Map<String, Object> fields = input.fields();
+        fields.put(BigQueryIoProvider.OPERATION_PARAM_NAME, BigQueryIoProvider.Operation.READ);
         fields.put(TxManager.SUB_IDENTIFIER, "_read");
         return fields;
     }

@@ -1,0 +1,37 @@
+tags: BigQuery
+stages:
+  Delete Statement:
+    actors:
+      Create Delete Statement:
+        parent: JavaScript
+        in:
+          script:
+            const: |-
+              var deleteStatement = "delete from " + schemaName + "." + tableName;
+              if (schemaName == null || schemaName == "") {
+                 deleteStatement = "delete from " + tableName;
+              }
+              deleteStatement += " WHERE TRUE";
+              deleteStatement;
+          schemaName:
+            external: schema
+            schema: string
+            mandatory: false
+          tableName:
+            external: table
+            schema: string
+            mandatory: false
+        out:
+          result:
+            schema: string
+  '|Delete The Table':
+    actors:
+      BQDeleteTable:
+        parent: DbCommand
+        in:
+          interface:
+            const: null
+            external: interface
+          sql:
+            const: null
+            link: Create Delete Statement/result

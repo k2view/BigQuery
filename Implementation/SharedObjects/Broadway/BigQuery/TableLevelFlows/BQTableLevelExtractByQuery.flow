@@ -1,0 +1,275 @@
+tags: BigQuery
+stages:
+  Inputs:
+    actors:
+      Where Claוse:
+        parent: Const
+        remark: The Where Cluase created based on the parameters when the task was
+          created/edited.
+        in:
+          value:
+            const: null
+            external: whereClause
+            schema: string
+        out:
+          value:
+            schema: string
+      Source Interface:
+        parent: Const
+        remark: The Source Interface
+        in:
+          value:
+            const: null
+            external: sourceInterface
+            schema: string
+        out:
+          value:
+            schema: string
+      Source Schema:
+        parent: Const
+        remark: The Source Schema
+        in:
+          value:
+            const: null
+            external: sourceSchema
+            schema: string
+        out:
+          value:
+            schema: string
+      Source Table Name:
+        parent: Const
+        remark: The ame of the source table.
+        in:
+          value:
+            const: null
+            external: sourceTableName
+            schema: string
+        out:
+          value:
+            schema: string
+      Query's Parameters Values as a String:
+        parent: Const
+        remark: A String including the list of  parameters sent for the query. The
+          values are separated by global - TDM_PARAMETERS_SEPARATOR
+        in:
+          value:
+            const: null
+            external: paramtersStr
+            schema: string
+        out:
+          value:
+            schema: string
+      Array of TheQuery's Parameters Values:
+        parent: Const
+        remark: An array with the values sent to the query.
+        in:
+          value:
+            const: null
+            external: queryParameters
+            schema: string
+        out:
+          value:
+            schema: string
+      Select Query Statement:
+        parent: Const
+        remark: The Sql statement including the where clause if exists to select the
+          data from source.
+        in:
+          value:
+            const: null
+            external: selectStatement
+            schema: string
+        out:
+          value:
+            schema: string
+      Count Query Statement:
+        parent: Const
+        remark: The Sql statement including the where clause if exists to count the
+          total number of records to be loaded.
+        in:
+          value:
+            const: null
+            external: countStatement
+            schema: string
+        out:
+          value:
+            schema: string
+      Query param keys:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: queryParametersKeys
+            schema: '#ref'
+        out:
+          value:
+            schema: '#ref'
+  Get Table Schema:
+    actors:
+      FetchColumnsTypes:
+        parent: DbCommand
+        in:
+          interface:
+            const: bigquery
+          sql:
+            const: |-
+              SELECT
+                column_name,
+                data_type
+              FROM
+                `${@dataset}.INFORMATION_SCHEMA.COLUMNS`
+              WHERE table_name = ${table}
+          dataset:
+            link: Source Schema/value
+            schema: string
+            mandatory: false
+          table:
+            link: Source Table Name/value
+            schema: string
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+  Build typed params array:
+    actors:
+      ParseParamsValues:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: BQParseQueryParams
+          paramsKeys:
+            link: Query param keys/value
+            schema: array
+            mandatory: false
+          paramsValues:
+            link: Array of TheQuery's Parameters Values/value
+            schema: '#ref'
+            mandatory: false
+          tableSchema:
+            link: FetchColumnsTypes/result
+            schema: '#ref'
+            mandatory: false
+        out:
+          parsedParamsValues:
+            schema: '#ref'
+  Execute Queries:
+    transactional: false
+    actors:
+      Run Select Statement:
+        parent: DbCommand
+        in:
+          interface:
+            const: null
+            external: sourceInterface
+          sql:
+            const: null
+            external: selectStatement
+          params:
+            link: ParseParamsValues/parsedParamsValues
+        out:
+          result:
+            external: result
+            schema: '#ref'
+      Get count Indicator:
+        parent: MTableLookup
+        in:
+          mtable:
+            const: TableLevelInterfaces
+          interface_name:
+            external: sourceInterface
+            schema: any
+            editor:
+              id: com.k2view.mTableKey
+            mandatory: false
+        out:
+          count_indicator:
+            schema: any
+  Count Total Records:
+    else: false
+    transactional: false
+    dependsOn: Execute Queries
+    actors:
+      Count Records?:
+        parent: NotEquals
+        condition: result
+        in:
+          a:
+            link: Get count Indicator/count_indicator
+            schema: string
+          b:
+            const: 'false'
+            schema: string
+      Run Count Statement:
+        parent: DbFetchField
+        in:
+          interface:
+            const: null
+            external: sourceInterface
+          sql:
+            const: null
+            external: countStatement
+          params:
+            link: ParseParamsValues/parsedParamsValues
+        out:
+          result:
+            external: tableCount
+            schema: integer
+    split: '--------------------'
+  Do not Count:
+    else: true
+    transactional: false
+    dependsOn: Execute Queries
+    actors:
+      Dummy Count:
+        parent: Const
+        in:
+          value:
+            const: -1
+            schema: integer
+        out:
+          value:
+            external: tableCount
+            schema: integer
+schemas:
+  Query param keys.in.value:
+    type: array
+    items: {
+      }
+  Query param keys.out.value:
+    type: array
+    items:
+      type: string
+  FetchColumnsTypes.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        column_name:
+          type: string
+        data_type:
+          type: string
+  ParseParamsValues.in.paramsValues:
+    type: array
+    items: {
+      }
+  ParseParamsValues.in.tableSchema:
+    type: array
+    items: {
+      }
+  ParseParamsValues.out.parsedParamsValues:
+    type: array
+    items:
+      type: string
+  Run Select Statement.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        customer_id:
+          type: integer
+        ssn:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string

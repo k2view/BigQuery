@@ -1,0 +1,182 @@
+tags: BigQuery
+stages:
+  Inputs:
+    actors:
+      ParamsKeys:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: paramsKeys
+            schema: array
+        out:
+          value:
+            schema: '#ref'
+      ParamsValues:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: paramsValues
+            schema: '#ref'
+        out:
+          value:
+            schema: '#ref'
+      CopySchemaInput:
+        parent: DeepCopy
+        in:
+          value:
+            external: tableSchema
+        out:
+          value:
+            schema: '#ref'
+  Loop over params:
+    actors:
+      LoopIndex1:
+        parent: LoopIndex
+        out:
+          value:
+            schema: integer
+      ParamKey:
+        parent: Const
+        in:
+          value:
+            const: null
+            link:
+              path: ParamsKeys/value
+              iterate: Iterate
+        out:
+          value:
+            schema: string
+  Value and Type:
+    actors:
+      ParamValue:
+        parent: JavaScript
+        in:
+          script:
+            const: values[i]
+          values:
+            link: ParamsValues/value
+            schema: '#ref'
+            mandatory: false
+          i:
+            link: LoopIndex1/value
+            schema: integer
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+      FindFieldType:
+        parent: JavaScript
+        in:
+          script:
+            const:
+              userCode: |-
+                var res = null;
+                array.forEach(item => {
+                    if (item["column_name"] === param) {
+                        res = item["data_type"];
+                    }
+                });
+                res;
+              script: |-
+                var res = null;
+                array.forEach(function (item) {
+                  if (item["column_name"] === param) {
+                    res = item["data_type"];
+                  }
+                });
+                res;
+          array:
+            link: CopySchemaInput/value
+            schema: '#ref'
+            mandatory: false
+          param:
+            link: ParamKey/value
+            schema: string
+            mandatory: false
+        out:
+          result:
+            schema: string
+  Parse to typed value:
+    actors:
+      StringToTypedValue:
+        parent: LuFunction
+        in:
+          functionName:
+            const: stringToBqValue
+          value:
+            link: ParamValue/result
+            schema: '#ref'
+            mandatory: false
+          bqType:
+            link: FindFieldType/result
+            schema: string
+            mandatory: false
+        out:
+          result:
+            schema: string
+  Output the array:
+    actors:
+      TypedParams:
+        parent: ArrayBuilder
+        in:
+          input:
+            link:
+              path: StringToTypedValue/result
+              pos: 0
+        out:
+          array:
+            external: parsedParamsValues
+            schema: '#ref'
+schemas:
+  ParamsKeys.out.value:
+    type: array
+    items:
+      type: string
+  ParamsValues.in.value:
+    type: array
+    items: {
+      }
+  ParamsValues.out.value:
+    type: array
+    items:
+      type: array
+      items:
+        type: string
+  CopySchemaInput.out.value:
+    type: array
+    items:
+      type: object
+      properties:
+        column_name:
+          type: string
+        data_type:
+          type: string
+  ParamValue.in.values:
+    type: array
+    items:
+      type: array
+      items:
+        type: string
+  ParamValue.out.result:
+    type: array
+    items:
+      type: string
+  FindFieldType.in.array:
+    type: array
+    items:
+      type: object
+      properties:
+        column_name:
+          type: string
+        data_type:
+          type: string
+  StringToTypedValue.in.value:
+    type: array
+    items:
+      type: string
+  TypedParams.out.array:
+    type: array
+    items:
+      type: string
