@@ -2,26 +2,6 @@ tags: BigQuery
 stages:
   Inputs:
     actors:
-      ParamsKeys:
-        parent: Const
-        in:
-          value:
-            const: null
-            external: paramsKeys
-            schema: array
-        out:
-          value:
-            schema: '#ref'
-      ParamsValues:
-        parent: Const
-        in:
-          value:
-            const: null
-            external: paramsValues
-            schema: '#ref'
-        out:
-          value:
-            schema: '#ref'
       CopySchemaInput:
         parent: DeepCopy
         in:
@@ -30,42 +10,31 @@ stages:
         out:
           value:
             schema: '#ref'
-  Loop over params:
-    actors:
-      LoopIndex1:
-        parent: LoopIndex
+      Params:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: params
+            schema: '#ref'
         out:
           value:
-            schema: integer
+            schema: '#ref'
+  Loop over params:
+    actors:
       ParamKey:
         parent: Const
         in:
           value:
             const: null
             link:
-              path: ParamsKeys/value
+              path: Params/value/Field Name
               iterate: Iterate
         out:
           value:
             schema: string
   Value and Type:
     actors:
-      ParamValue:
-        parent: JavaScript
-        in:
-          script:
-            const: values[i]
-          values:
-            link: ParamsValues/value
-            schema: '#ref'
-            mandatory: false
-          i:
-            link: LoopIndex1/value
-            schema: integer
-            mandatory: false
-        out:
-          result:
-            schema: '#ref'
       FindFieldType:
         parent: JavaScript
         in:
@@ -104,18 +73,24 @@ stages:
         parent: LuFunction
         in:
           functionName:
-            const: stringToBqValue
-          value:
-            link: ParamValue/result
-            schema: '#ref'
+            const: bigQueryParseTdmQueryParam
+          fieldName:
+            link: ParamKey/value
+            schema: any
             mandatory: false
-          bqType:
+          value:
+            link:
+              path: Params/value/Field Value
+              iterate: Iterate
+            schema: any
+            mandatory: false
+          type:
             link: FindFieldType/result
-            schema: string
+            schema: any
             mandatory: false
         out:
           result:
-            schema: string
+            schema: any
   Output the array:
     actors:
       TypedParams:
@@ -130,20 +105,6 @@ stages:
             external: parsedParamsValues
             schema: '#ref'
 schemas:
-  ParamsKeys.out.value:
-    type: array
-    items:
-      type: string
-  ParamsValues.in.value:
-    type: array
-    items: {
-      }
-  ParamsValues.out.value:
-    type: array
-    items:
-      type: array
-      items:
-        type: string
   CopySchemaInput.out.value:
     type: array
     items:
@@ -153,16 +114,21 @@ schemas:
           type: string
         data_type:
           type: string
-  ParamValue.in.values:
+  Params.in.value:
+    type: array
+    items: {
+      }
+  Params.out.value:
     type: array
     items:
-      type: array
-      items:
-        type: string
-  ParamValue.out.result:
-    type: array
-    items:
-      type: string
+      type: object
+      properties:
+        Field Name:
+          type: string
+        Field Type:
+          type: string
+        Field Value:
+          type: string
   FindFieldType.in.array:
     type: array
     items:
@@ -172,10 +138,6 @@ schemas:
           type: string
         data_type:
           type: string
-  StringToTypedValue.in.value:
-    type: array
-    items:
-      type: string
   TypedParams.out.array:
     type: array
     items:

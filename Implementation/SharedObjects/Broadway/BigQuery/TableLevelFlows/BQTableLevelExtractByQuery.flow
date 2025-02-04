@@ -59,17 +59,6 @@ stages:
         out:
           value:
             schema: string
-      Array of TheQuery's Parameters Values:
-        parent: Const
-        remark: An array with the values sent to the query.
-        in:
-          value:
-            const: null
-            external: queryParameters
-            schema: string
-        out:
-          value:
-            schema: string
       Select Query Statement:
         parent: Const
         remark: The Sql statement including the where clause if exists to select the
@@ -94,12 +83,12 @@ stages:
         out:
           value:
             schema: string
-      Query param keys:
+      Query params map:
         parent: Const
         in:
           value:
             const: null
-            external: queryParametersKeys
+            external: queryParameters
             schema: '#ref'
         out:
           value:
@@ -137,16 +126,12 @@ stages:
         in:
           flowName:
             const: BQParseQueryParams
-          paramsKeys:
-            link: Query param keys/value
-            schema: array
-            mandatory: false
-          paramsValues:
-            link: Array of TheQuery's Parameters Values/value
-            schema: '#ref'
-            mandatory: false
           tableSchema:
             link: FetchColumnsTypes/result
+            schema: '#ref'
+            mandatory: false
+          params:
+            link: Query params map/value
             schema: '#ref'
             mandatory: false
         out:
@@ -177,11 +162,13 @@ stages:
             const: TableLevelInterfaces
           interface_name:
             external: sourceInterface
-            schema: any
+            schema: string
             editor:
               id: com.k2view.mTableKey
             mandatory: false
         out:
+          result:
+            schema: '#ref'
           count_indicator:
             schema: any
   Count Total Records:
@@ -231,11 +218,11 @@ stages:
             external: tableCount
             schema: integer
 schemas:
-  Query param keys.in.value:
+  Query params map.in.value:
     type: array
     items: {
       }
-  Query param keys.out.value:
+  Query params map.out.value:
     type: array
     items:
       type: string
@@ -248,11 +235,11 @@ schemas:
           type: string
         data_type:
           type: string
-  ParseParamsValues.in.paramsValues:
+  ParseParamsValues.in.tableSchema:
     type: array
     items: {
       }
-  ParseParamsValues.in.tableSchema:
+  ParseParamsValues.in.params:
     type: array
     items: {
       }
@@ -273,3 +260,20 @@ schemas:
           type: string
         last_name:
           type: string
+  Get count Indicator.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        interface_name:
+          type: string
+        suppress_indicator:
+          type: string
+        truncate_indicator: {
+          }
+        count_indicator: {
+          }
+        order_flow: {
+          }
+        no_schema: {
+          }

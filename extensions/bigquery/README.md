@@ -1,6 +1,6 @@
 # BigQuery Connector
 
-**Note**: This version is compatible with **Fabric v8.1**.
+> Note: This version is compatible with **Fabric 8.1**. TDM Table-Level flows are compatible with **TDM 9.3**.
 
 ## Overview
 The BigQuery Connector provides integration with Google's BigQuery through two Broadway actors:
@@ -33,7 +33,15 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
-### **v1.1.2**
+### v1.1.3
+
+#### Fixed
+- Add missing function that parses TDM Table-Level Extract params to relevant BigQuery types.
+
+#### Changed
+- The Table-Level extract flow now expects parameters as an array of maps (containing field name, type, and value) instead of just values, in accordance with TDM 9.3.
+
+### v1.1.2
 
 #### Added
 - Table-Level Extract/Load/Delete Flows for TDM tasks.
@@ -52,7 +60,7 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ---
 
-### **v1.1.0**
+### v1.1.0
 
 #### Added
 - Monitoring support for the discovery crawler job.
