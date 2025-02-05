@@ -1,6 +1,9 @@
 # BigQuery Connector
 
-> Note: This version is compatible with **Fabric 8.1**. TDM Table-Level flows are compatible with **TDM 9.3**.
+>
+> This version is compatible with **Fabric 8.2**.  
+> TDM Table-Level flows are compatible with **TDM 9.3**.  
+> If you're using **Fabric 8.1**, please install v1.1.x.
 
 ## Overview
 The BigQuery Connector provides integration with Google's BigQuery through two Broadway actors:
@@ -32,6 +35,13 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ---
 
 ## Change Log
+
+### v1.2.0
+#### Changed
+- Dropped support for Fabric 8.1 and added support for Fabric 8.2.
+
+### Fixed
+- Aborting a discovery job was not actually stopping the job. Support for proper job termination has been added.
 
 ### v1.1.3
 

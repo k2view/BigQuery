@@ -44,7 +44,7 @@ public class DatasetFieldsBuilder {
             Consumer<SchemaPropertyContext> schemaConsumer) {
         final AtomicInteger i = new AtomicInteger(0);
         objType.properties().forEach((innerFieldName, innerFieldSchema) -> {
-            ConcreteField innerField = new ConcreteField(innerFieldName);
+            ConcreteField innerField = new ConcreteField(innerFieldName, 1.0, CRAWLER, "", "Field name", innerFieldName);
             String idPrefix = FIELD + ":" + innerField.getId();
             Type type = innerFieldSchema.type();
 
@@ -57,7 +57,7 @@ public class DatasetFieldsBuilder {
             } else if (type == Type.object) {
                 String fieldClass = ComplexFieldPlugin.createClassName(innerFieldName);
                 String innerClassId = isTopLevel ? fieldClass : classNode.getId() + INNER_CLASS_DELIMITER + fieldClass;
-                ConcreteClassNode innerClassNode = new ConcreteClassNode(innerClassId);
+                ConcreteClassNode innerClassNode = new ConcreteClassNode(innerClassId, 1.0, CRAWLER, "", "Field", innerClassId);
                 innerClassNode.addProperty(innerClassId, ENTITY_NAME, "", innerClassId, 1.0, CRAWLER, "");
                 innerField.definedBy(innerClassNode, 1.0, CRAWLER, "", definedByProperties(innerFieldName, innerClassId));
                 processObject(innerClassNode, (ObjectType) innerFieldSchema, false, collectionDepth, schemaConsumer);
@@ -86,7 +86,7 @@ public class DatasetFieldsBuilder {
             String fieldClass = ComplexFieldPlugin.createClassName(field.getId());
             String innerClassId = isTopLevel ? fieldClass : fieldParentId + INNER_CLASS_DELIMITER + fieldClass;
             innerClassId = "Collection(".repeat(collectionDepth) + innerClassId + ")".repeat(collectionDepth);
-            ConcreteClassNode innerClassNode = new ConcreteClassNode(innerClassId);
+            ConcreteClassNode innerClassNode = new ConcreteClassNode(innerClassId, 1.0, CRAWLER, "", "Field", innerClassId);
             innerClassNode.addProperty(innerClassId, ENTITY_NAME, "", innerClassId, 1.0, CRAWLER, "");
             field.definedBy(innerClassNode, 1.0, CRAWLER, "", definedByProperties(field.getName(), innerClassId));
             processObject(innerClassNode, (ObjectType) itemsSchema, false, 0, schemaConsumer);
