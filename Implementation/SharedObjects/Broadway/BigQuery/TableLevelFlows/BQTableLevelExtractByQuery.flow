@@ -59,6 +59,17 @@ stages:
         out:
           value:
             schema: string
+      Array of TheQuery's Parameters Values:
+        parent: Const
+        remark: An array with the values sent to the query.
+        in:
+          value:
+            const: null
+            external: queryParameters
+            schema: string
+        out:
+          value:
+            schema: string
       Select Query Statement:
         parent: Const
         remark: The Sql statement including the where clause if exists to select the
@@ -88,7 +99,7 @@ stages:
         in:
           value:
             const: null
-            external: queryParameters
+            external: filterParametersInfo
             schema: '#ref'
         out:
           value:
@@ -145,10 +156,10 @@ stages:
         in:
           interface:
             const: null
-            external: sourceInterface
+            link: Source Interface/value
           sql:
             const: null
-            external: selectStatement
+            link: Where Claוse/value
           params:
             link: ParseParamsValues/parsedParamsValues
         out:

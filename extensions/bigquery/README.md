@@ -27,20 +27,23 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
    - The connector provides the below flows:
      - BQTableLevelDelete - uses DbCommand.
      - BQTableLevelExtractByQuery - uses DbCommand.
-     - BQTableLevelExtractByStorage - uses BigQueryRead actor, should be faster but doesn't support filtering.
+     - BQTableLevelExtractByStorage - uses BigQueryRead actor.
      - BQTableLevelLoadByStorage - uses BigQueryWrite actor.
-   - The connector includes the MTable `TableLevelInterfaces___bigquery` which defines the default flows for BigQuery interfaces. If you want to set a custom flow, don't change this file (unless you want to make it a default for all BigQuery interfaces), rather add a separate row in `TableLevelInterfaces` for the specific interface name.
-
+   - To specify which flows to use, add a row in the MTable `TableLevelInterfaces` for your BigQuery interface. 
 
 ---
 
 ## Change Log
 
+### v1.2.1
+#### Fixed
+- Table-Level Extract flows
+
 ### v1.2.0
 #### Changed
 - Dropped support for Fabric 8.1 and added support for Fabric 8.2.
 
-### Fixed
+#### Fixed
 - Aborting a discovery job was not actually stopping the job. Support for proper job termination has been added.
 
 ### v1.1.3

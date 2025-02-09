@@ -5,6 +5,8 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.sql.*;
 import java.math.*;
 import java.io.*;
@@ -37,10 +39,46 @@ public class SharedLogic {
 		return new BigQueryIoProvider();
 	}
 
-    public static Object bigQueryParseTdmQueryParam(String fieldName, String value, String type) {
+    public static Object bqParseTdmQueryParam(String fieldName, String value, String type) {
         // Assuming value is primitive for the sake of select queries built by TDM
         Field field = Field.of(fieldName, StandardSQLTypeName.valueOf(type));
         FieldValue fieldValue = FieldValue.of(Attribute.PRIMITIVE, value);
         return parseBqValue(field, fieldValue, false);
+    }
+
+    public static String bqReplaceFilterPlaceholders(String filter, Iterable<Object> values) {
+        if (filter == null || values == null) {
+            throw new IllegalArgumentException("Filter and values cannot be null");
+        }
+
+        Iterator<Object> iterator = values.iterator();
+        StringBuilder result = new StringBuilder();
+        Matcher matcher = Pattern.compile("\\?").matcher(filter);
+
+        while (matcher.find()) {
+            if (!iterator.hasNext()) {
+                throw new IllegalArgumentException("Not enough values provided for placeholders");
+            }
+
+            Object value = iterator.next();
+            String replacement;
+
+            if (value == null) {
+                replacement = "NULL";
+            } else if (value instanceof String) {
+                replacement = "'" + value.toString().replace("'", "''") + "'"; // Escape single quotes
+            } else {
+                replacement = value.toString();
+            }
+            matcher.appendReplacement(result, replacement);
+        }
+
+        matcher.appendTail(result);
+
+        if (iterator.hasNext()) {
+            throw new IllegalArgumentException("Too many values provided for placeholders");
+        }
+
+        return result.toString();
     }
 }

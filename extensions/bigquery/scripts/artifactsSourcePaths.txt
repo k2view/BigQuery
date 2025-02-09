@@ -1,7 +1,9 @@
 Implementation/SharedObjects/Java/src/com/k2view/cdbms/usercode/common/BigQuery
 Implementation/SharedObjects/Broadway/BigQuery
+Implementation/SharedObjects/Broadway/BigQuery/TableLevelFlows
 Implementation/SharedObjects/InterfaceTypes/GenericTypes/BigQuery.xml
 Implementation/SharedObjects/InterfaceTypes/GenericTypes/BigQuery.png
+Implementation/LogicalUnits/k2_ref/Mtable/TableLevelDefinitions___bigquery.csv
 lib/arrow-vector-10.0.0.jar
 lib/threetenbp-1.6.4.jar
 lib/threeten-extra-1.7.1.jar

@@ -94,23 +94,98 @@ stages:
         out:
           value:
             schema: string
-  Assert No Filters:
-    actors:
-      Assert where is empty:
-        parent: JavaScript
+      Query params map:
+        parent: Const
         in:
-          script:
+          value:
+            const: null
+            external: filterParametersInfo
+            schema: '#ref'
+        out:
+          value:
+            schema: '#ref'
+  Get Table Schema:
+    actors:
+      FetchColumnsTypes:
+        parent: DbCommand
+        in:
+          interface:
+            const: bigquery
+          sql:
             const: |-
-              if (where != null && where.length > 0) {
-                  throw "Where clauses are not supported in Table Level Extract using BigQuery Storage API. Please use the other flow provided."
-              }
-          where:
+              SELECT
+                column_name,
+                data_type
+              FROM
+                `${@dataset}.INFORMATION_SCHEMA.COLUMNS`
+              WHERE table_name = ${table}
+          dataset:
+            link: Source Schema/value
+            schema: string
+            mandatory: false
+          table:
+            link: Source Table Name/value
+            schema: string
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+  Build typed params array:
+    actors:
+      ParseParamsValues:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: BQParseQueryParams
+          tableSchema:
+            link: FetchColumnsTypes/result
+            schema: '#ref'
+            mandatory: false
+          params:
+            link: Query params map/value
+            schema: '#ref'
+            mandatory: false
+        out:
+          parsedParamsValues:
+            schema: '#ref'
+  Assign values to params:
+    actors:
+      ReplacePlaceholders:
+        parent: LuFunction
+        in:
+          functionName:
+            const: bqReplaceFilterPlaceholders
+          filter:
             link: Where Claוse/value
             schema: string
             mandatory: false
+          values:
+            link: ParseParamsValues/parsedParamsValues
+            schema: '#ref'
+            mandatory: false
+        out:
+          result:
+            schema: string
   Execute Queries:
     transactional: false
     actors:
+      BQStorageRead:
+        parent: BigQueryRead
+        in:
+          interface:
+            const: null
+            link: Source Interface/value
+          filter:
+            const: null
+            link: ReplacePlaceholders/result
+          dataset:
+            link: Source Schema/value
+          table:
+            link: Source Table Name/value
+        out:
+          result:
+            external: result
+            schema: '#ref'
       Get count Indicator:
         parent: MTableLookup
         in:
@@ -127,20 +202,6 @@ stages:
             schema: '#ref'
           count_indicator:
             schema: any
-      ExtractBQData:
-        parent: BigQueryRead
-        in:
-          interface:
-            const: null
-            link: Source Interface/value
-          dataset:
-            link: Source Schema/value
-          table:
-            link: Source Table Name/value
-        out:
-          result:
-            external: result
-            schema: '#ref'
   Count Total Records:
     else: false
     transactional: false
@@ -156,25 +217,21 @@ stages:
           b:
             const: 'false'
             schema: string
-      BQCountRecords:
-        parent: DbCommand
+      Run Count Statement:
+        parent: DbFetchField
         in:
           interface:
             const: null
-            link: Source Interface/value
+            external: sourceInterface
           sql:
-            const: SELECT COUNT(*) as cnt FROM `${@dataset}.${@table}`;
-          dataset:
-            link: Source Schema/value
-            schema: string
-            mandatory: false
-          table:
-            link: Source Table Name/value
-            schema: string
-            mandatory: false
+            const: null
+            external: countStatement
+          params:
+            link: ParseParamsValues/parsedParamsValues
         out:
           result:
-            schema: '#ref'
+            external: tableCount
+            schema: integer
     split: '--------------------'
   Do not Count:
     else: true
@@ -191,28 +248,51 @@ stages:
           value:
             external: tableCount
             schema: integer
-  SetCountExternal:
-    dependsOn: Count Total Records
-    actors:
-      SetCount:
-        parent: JavaScript
-        in:
-          script:
-            const: o.cnt
-          o:
-            link:
-              path: BQCountRecords/result
-              iterate: First
-            schema: '#ref'
-            mandatory: false
-        out:
-          result:
-            external: tableCount
-            schema: integer
-    split: '--------------------'
-  N/A:
-    dependsOn: Do not Count
 schemas:
+  Query params map.in.value:
+    type: array
+    items: {
+      }
+  Query params map.out.value:
+    type: array
+    items:
+      type: string
+  FetchColumnsTypes.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        column_name:
+          type: string
+        data_type:
+          type: string
+  ParseParamsValues.in.tableSchema:
+    type: array
+    items: {
+      }
+  ParseParamsValues.in.params:
+    type: array
+    items: {
+      }
+  ParseParamsValues.out.parsedParamsValues:
+    type: array
+    items:
+      type: string
+  ReplacePlaceholders.in.values:
+    type: array
+    items:
+      type: string
+  BQStorageRead.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+        assigned_sex_at_birth: {
+          }
+        count: {
+          }
   Get count Indicator.out.result:
     type: array
     items:
@@ -230,28 +310,3 @@ schemas:
           }
         no_schema: {
           }
-  ExtractBQData.out.result:
-    type: array
-    items:
-      type: object
-      properties:
-        name:
-          type: string
-        assigned_sex_at_birth: {
-          }
-        count: {
-          }
-  BQCountRecords.out.result:
-    type: array
-    items:
-      type: object
-      properties:
-        f0_:
-          type: integer
-  SetCount.in.o:
-    type: array
-    items:
-      type: object
-      properties:
-        cnt:
-          type: integer

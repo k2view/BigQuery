@@ -22,17 +22,22 @@ stages:
             schema: '#ref'
   Loop over params:
     actors:
-      ParamKey:
+      FieldName:
         parent: Const
         in:
           value:
             const: null
             link:
-              path: Params/value/Field Name
+              path: Params/value/field_name
               iterate: Iterate
-        out:
+      FieldValue:
+        parent: Const
+        in:
           value:
-            schema: string
+            const: null
+            link:
+              path: Params/value/field_value
+              iterate: Iterate
   Value and Type:
     actors:
       FindFieldType:
@@ -43,7 +48,7 @@ stages:
               userCode: |-
                 var res = null;
                 array.forEach(item => {
-                    if (item["column_name"] === param) {
+                    if (item["column_name"] === field_name) {
                         res = item["data_type"];
                     }
                 });
@@ -51,7 +56,7 @@ stages:
               script: |-
                 var res = null;
                 array.forEach(function (item) {
-                  if (item["column_name"] === param) {
+                  if (item["column_name"] === field_name) {
                     res = item["data_type"];
                   }
                 });
@@ -60,8 +65,8 @@ stages:
             link: CopySchemaInput/value
             schema: '#ref'
             mandatory: false
-          param:
-            link: ParamKey/value
+          field_name:
+            link: FieldName/value
             schema: string
             mandatory: false
         out:
@@ -75,13 +80,11 @@ stages:
           functionName:
             const: bigQueryParseTdmQueryParam
           fieldName:
-            link: ParamKey/value
+            link: FieldName/value
             schema: any
             mandatory: false
           value:
-            link:
-              path: Params/value/Field Value
-              iterate: Iterate
+            link: FieldValue/value
             schema: any
             mandatory: false
           type:
@@ -123,11 +126,11 @@ schemas:
     items:
       type: object
       properties:
-        Field Name:
+        field_name:
           type: string
-        Field Type:
+        field_type:
           type: string
-        Field Value:
+        field_value:
           type: string
   FindFieldType.in.array:
     type: array
