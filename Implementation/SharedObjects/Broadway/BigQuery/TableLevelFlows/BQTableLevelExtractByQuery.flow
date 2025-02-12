@@ -110,7 +110,8 @@ stages:
         parent: DbCommand
         in:
           interface:
-            const: bigquery
+            const: null
+            link: Source Interface/value
           sql:
             const: |-
               SELECT
@@ -159,7 +160,7 @@ stages:
             link: Source Interface/value
           sql:
             const: null
-            link: Where Claוse/value
+            link: Select Query Statement/value
           params:
             link: ParseParamsValues/parsedParamsValues
         out:

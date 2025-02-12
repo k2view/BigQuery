@@ -78,7 +78,7 @@ stages:
         parent: LuFunction
         in:
           functionName:
-            const: bigQueryParseTdmQueryParam
+            const: bqParseTdmQueryParam
           fieldName:
             link: FieldName/value
             schema: any

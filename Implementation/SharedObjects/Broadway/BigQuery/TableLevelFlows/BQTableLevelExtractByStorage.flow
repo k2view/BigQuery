@@ -110,7 +110,8 @@ stages:
         parent: DbCommand
         in:
           interface:
-            const: bigquery
+            const: null
+            link: Source Interface/value
           sql:
             const: |-
               SELECT

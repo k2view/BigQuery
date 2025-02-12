@@ -35,6 +35,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.2.2
+- Minor fixes for Table-Level Extract Flows
+
 ### v1.2.1
 #### Fixed
 - Table-Level Extract flows
