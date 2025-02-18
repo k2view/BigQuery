@@ -1,0 +1,111 @@
+stages:
+  Input:
+    actors:
+      PopulationArgs:
+        parent: PopulationArgs
+        readonly: true{{#if inputArgs}}
+        in:{{#each inputArgs}}
+          {{this}}:
+            external: {{this}}
+            schema: any
+            mandatory: false{{/each}}{{/if}}
+      SyncDeleteMode:
+        parent: SyncDeleteMode
+        in:
+          interface:
+            schema: any
+          table:
+            const: null
+            external: table
+  Parent Rows Mapper:
+    actors:
+      ParentRowsMapper:
+        parent: LuFunction
+        in:
+          functionName:
+            const: bqParentRowsMapper
+          lu:
+            external: schema
+            schema: string
+            mandatory: false
+          table:
+            external: table
+            schema: string
+            mandatory: false
+          parentRows:
+            link: PopulationArgs/parent_rows
+            schema:
+              type: array
+              items:
+                type: object
+            mandatory: false
+        out:
+          result:
+            schema:
+              type: array
+              items:
+                type: object
+  Source:
+    actors:
+      Query:
+        parent: SourceDbQuery
+        in:
+          interface:
+            const: {{#if sourceInterface}}{{sourceInterface}}{{else}}null{{/if}}
+          sql:
+            const: {{#if sourceQuery}}{{{sourceQuery}}}{{else}}null{{/if}}{{#if streamSyncEnabled}}
+          stream_sync_enabled:
+            const: {{streamSyncEnabled}}{{/if}}
+          parent_rows:
+            link: ParentRowsMapper/result{{#if sourceQueryOutputs}}
+        out:
+          result:
+            schema: '#ref'{{/if}}
+  LU Table:
+    last: 1
+    actors:
+      {{luTable}}:
+        parent: DbLoad
+        in:
+          interface:
+            const: fabric{{#if upsert}}
+          command:
+            const: upsert{{/if}}
+          schema:
+            const: null
+            external: schema
+          table:
+            const: null
+            external: table
+          fields:
+            const:
+            {{#each luTableColumns}}
+            - {{this}}
+            {{/each}}
+          keys:
+            const:
+            {{#each luTableKeys}}
+            - {{this}}
+            {{/each}}
+          dialect:
+            const: sqlite
+          {{#each luTableColumns}}
+          {{this}}:
+            schema: any
+          {{/each}}
+          params:
+            link:
+              path: Query/result
+              iterate: Iterate
+  Post Load: {
+    }
+{{#if sourceQueryOutputs}}schemas:    
+  Query.out.result:
+    type: object
+    properties:
+      {{#each sourceQueryOutputs}}
+      {{this}}:
+        type: {
+          }
+      {{/each}}
+{{/if}}

@@ -1,12 +1,34 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
-import com.google.api.services.bigquery.model.StandardSqlDataType;
-import com.google.cloud.bigquery.*;
-import com.google.gson.JsonObject;
-import com.google.type.Interval;
-import com.k2view.fabric.common.ByteStream;
-import com.k2view.fabric.common.Log;
-import com.k2view.fabric.common.ParamConvertor;
+import static com.google.cloud.bigquery.Field.Mode.REPEATED;
+import static com.k2view.fabric.common.ParamConvertor.toBuffer;
+
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringWriter;
+import java.lang.reflect.Type;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.sql.Blob;
+import java.sql.Clob;
+import java.sql.SQLException;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.apache.avro.Conversions;
 import org.apache.avro.LogicalType;
@@ -16,21 +38,18 @@ import org.apache.avro.generic.GenericData;
 import org.apache.avro.util.Utf8;
 import org.opensearch.geometry.Geometry;
 
-import java.lang.reflect.Type;
-import java.math.BigDecimal;
-import java.nio.ByteBuffer;
-import java.sql.Blob;
-import java.sql.Time;
-import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.util.*;
-
-import static com.google.cloud.bigquery.Field.Mode.REPEATED;
-import static com.k2view.fabric.common.ParamConvertor.toBuffer;
+import com.google.cloud.bigquery.Field;
+import com.google.cloud.bigquery.FieldValue;
+import com.google.cloud.bigquery.FieldValueList;
+import com.google.cloud.bigquery.LegacySQLTypeName;
+import com.google.cloud.bigquery.QueryParameterValue;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.gson.JsonObject;
+import com.google.type.Interval;
+import com.k2view.fabric.common.ByteStream;
+import com.k2view.fabric.common.Log;
+import com.k2view.fabric.common.ParamConvertor;
+import com.k2view.fabric.common.Util;
 
 public class BigQueryParamParser {
     private static final String BQ_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSSSS";
@@ -239,11 +258,11 @@ public class BigQueryParamParser {
                 case TIMESTAMP:
                     return Timestamp.from(fieldValue.getTimestampInstant());
                 case DATE:
-                    return java.sql.Date.valueOf(fieldValue.getStringValue());
+                    return ParamConvertor.toDate(fieldValue.getValue());
                 case TIME:
-                    return LocalTime.parse((String) fieldValue.getValue());
+                    return fieldValue.getValue();
                 case DATETIME:
-                    return LocalDateTime.parse((String) fieldValue.getValue());
+                    return fieldValue.getValue();
                 case STRING:
                 case JSON:
                 case INTERVAL:
@@ -344,6 +363,107 @@ public class BigQueryParamParser {
             return res;
         } else {
             return value;
+        }
+    }
+
+    static Object parseToBqData(Object param) {
+        if (param == null) {
+            return null;
+        }
+        
+        if (param instanceof String) {
+            return param;
+        }
+        
+        if (param instanceof Number) {
+            if (param instanceof BigDecimal bigDecimal) {
+                return bigDecimal.scale() > 9 ? bigDecimal.toPlainString() : bigDecimal; 
+            }
+            return param; // BigQuery supports Java numeric types natively
+        }
+        
+        if (param instanceof Boolean) {
+            return param;
+        }
+        
+        if (param instanceof byte[] bytes) {
+            return bytes; // BigQuery supports BYTES directly
+        }
+        
+        if (param instanceof ByteBuffer byteBuffer) {
+            return byteBuffer.array(); // Convert to byte array
+        }
+        
+        if (param instanceof Timestamp timestamp) {
+            return timestamp.toInstant().toString(); // Convert to ISO 8601 format
+        }
+        
+        if (param instanceof Time time) {
+            return time.toLocalTime().toString(); // Format: HH:mm:ss.SSS
+        }
+        
+        if (param instanceof LocalTime localTime) {
+            return localTime.toString(); // Format: HH:mm:ss.SSS
+        }
+        
+        if (param instanceof java.sql.Date sqlDate) {
+            return sqlDate.toString(); // YYYY-MM-DD
+        }
+
+        if (param instanceof Date utilDate) {
+            return Instant.ofEpochMilli(utilDate.getTime()).atZone(ZoneId.systemDefault()).toLocalDate().toString();
+        }
+        
+        if (param instanceof LocalDate localDate) {
+            return localDate.toString(); // Format: YYYY-MM-DD
+        }
+        
+        if (param instanceof LocalDateTime localDateTime) {
+            return localDateTime.toString().replace("T", " "); // Format: YYYY-MM-DD HH:mm:ss.SSS
+        }
+        
+        if (param instanceof Instant instant) {
+            return instant.toString(); // Format: ISO 8601
+        }
+        
+        if (param instanceof Clob clob) {
+            return Util.rte(() -> clobToString(clob));
+        }
+        
+        if (param instanceof Collection<?> collection) {
+            List<Object> convertedList = new ArrayList<>();
+            for (Object item : collection) {
+                convertedList.add(parseToBqData(item)); // Recursively convert list elements
+            }
+            return convertedList;
+        }
+        
+        if (param instanceof Object[] array) {
+            return Arrays.stream(array).map(BigQueryParamParser::parseToBqData).toList();
+        }
+        
+        if (param instanceof Map<?, ?> map) {
+            Map<String, Object> convertedMap = new HashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                if (entry.getKey() instanceof String key) {
+                    convertedMap.put(key, parseToBqData(entry.getValue())); // Recursively convert map values
+                }
+            }
+            return convertedMap; // Return a properly structured map
+        }
+        
+        throw new IllegalArgumentException("Unsupported data type: " + param.getClass().getName());
+    }
+    
+    private static String clobToString(Clob clob) throws IOException, SQLException {
+        if (clob == null) return null;
+        try (Reader reader = clob.getCharacterStream(); StringWriter writer = new StringWriter()) {
+            char[] buffer = new char[1024];
+            int length;
+            while ((length = reader.read(buffer)) != -1) {
+                writer.write(buffer, 0, length);
+            }
+            return writer.toString();
         }
     }
 

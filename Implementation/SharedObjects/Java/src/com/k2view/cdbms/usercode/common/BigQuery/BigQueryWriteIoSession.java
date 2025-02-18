@@ -5,6 +5,7 @@ import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
 import com.k2view.cdbms.usercode.common.BigQuery.BigQueryMetadata;
 import com.k2view.fabric.common.Log;
 import com.k2view.fabric.common.ParamConvertor;
+import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.AbstractIoSession;
 import com.k2view.fabric.common.io.IoCommand;
 import org.json.JSONArray;
@@ -176,7 +177,14 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 			}
 
 			// Create JSONObject from data map and add it to the batch array.
-			JSONObject jsonObject = new JSONObject((Map<?, ?>) input.get(INPUT_DATA));
+			@SuppressWarnings("unchecked")
+			Map<String, Object> data = (Map<String, Object>) input.get(INPUT_DATA);
+			if (!Util.isEmpty(data)) {
+				data.replaceAll((k, v) -> {
+					return BigQueryParamParser.parseToBqData(v);
+				});
+			}
+			JSONObject jsonObject = new JSONObject(data);
 
 			synchronized (batchDataLock) {
 				long finalBatchSize = batchSize;

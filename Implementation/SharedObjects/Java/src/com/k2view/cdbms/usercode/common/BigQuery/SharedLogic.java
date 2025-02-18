@@ -23,6 +23,7 @@ import com.google.cloud.bigquery.FieldValue.Attribute;
 import com.google.cloud.bigquery.FieldValue;
 import com.k2view.cdbms.func.oracle.OracleRownum;
 import com.k2view.cdbms.shared.utils.UserCodeDescribe.*;
+import com.k2view.fabric.common.ParamConvertor;
 import com.k2view.fabric.common.io.IoProvider;
 import com.k2view.fabric.fabricdb.datachange.TableDataChange;
 
@@ -41,7 +42,7 @@ public class SharedLogic {
 
     public static Object bqParseTdmQueryParam(String fieldName, String value, String type) {
         // Assuming value is primitive for the sake of select queries built by TDM
-        Field field = Field.of(fieldName, StandardSQLTypeName.valueOf(type));
+        Field field = Field.of(fieldName, mapToStandardSQLType(type));
         FieldValue fieldValue = FieldValue.of(Attribute.PRIMITIVE, value);
         return parseBqValue(field, fieldValue, false);
     }
@@ -81,4 +82,55 @@ public class SharedLogic {
 
         return result.toString();
     }
+
+    /**
+     * Converts INFORMATION_SCHEMA `data_type` into StandardSQLTypeName.
+     */
+    private static StandardSQLTypeName mapToStandardSQLType(String type) {
+        // Remove precision/length specifiers, e.g., "STRING(10)" → "STRING"
+        String baseType = type.replaceAll("\\(.*\\)", "").toUpperCase();
+    
+        // Handle special case: ARRAY<TYPE>
+        if (baseType.startsWith("ARRAY<")) {
+            return StandardSQLTypeName.ARRAY;
+        }
+    
+        return switch (baseType) {
+            case "STRING" -> StandardSQLTypeName.STRING;
+            case "INT64", "INTEGER" -> StandardSQLTypeName.INT64;
+            case "FLOAT64", "FLOAT" -> StandardSQLTypeName.FLOAT64;
+            case "BOOLEAN", "BOOL" -> StandardSQLTypeName.BOOL;
+            case "DATETIME" -> StandardSQLTypeName.DATETIME;
+            case "TIMESTAMP" -> StandardSQLTypeName.TIMESTAMP;
+            case "DATE" -> StandardSQLTypeName.DATE;
+            case "NUMERIC" -> StandardSQLTypeName.NUMERIC;
+            case "BIGNUMERIC" -> StandardSQLTypeName.BIGNUMERIC;
+            case "BYTES" -> StandardSQLTypeName.BYTES;
+            default -> throw new IllegalArgumentException("Unsupported BigQuery type: " + type);
+        };
+    }
+
+    public static Iterable<Map<String, Object>> bqParentRowsMapper(String lu, String table, Iterable<Map<String, Object>> parentRows) {
+        LUType luType = LUType.getTypeByName(lu);
+        if (!table.equalsIgnoreCase(luType.rootObjectName)) {
+            return parentRows;
+        }
+        LudbColumn ludbEntityIDColumnObject = luType.ludbEntityIDColumnObject;
+        String iidColName = ludbEntityIDColumnObject.originColumnName;
+        Map<String, Object> row = parentRows.iterator().next();
+        Object oldVal = row.get(iidColName);
+        Object newVal;
+        switch (ludbEntityIDColumnObject.originalColumnDataType.toUpperCase()) {
+            case "INTEGER" -> newVal = ParamConvertor.toInteger(oldVal);
+            case "REAL" -> newVal = ParamConvertor.toReal(oldVal);
+            case "DATETIME", "DATE", "TIME" -> newVal = ParamConvertor.toDate(oldVal);
+            case "BLOB" -> newVal = ParamConvertor.toBuffer(oldVal);
+            case "TEXT" -> newVal = ParamConvertor.toString(oldVal);
+            default -> newVal = oldVal;
+        }
+        row.replace(iidColName, newVal);
+        return List.of(row);
+    }
+    
+
 }
