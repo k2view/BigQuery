@@ -35,6 +35,12 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.2.3
+- Fix root table population issue when IID field is not a string.
+- Proper parsing of datetime fields.
+- Fix field type check to properly parse the query params in Table-Level extract.
+- Added data-type checks and conversions before writes to BigQuery.
+
 ### v1.2.2
 - Minor fixes for Table-Level Extract Flows
 
