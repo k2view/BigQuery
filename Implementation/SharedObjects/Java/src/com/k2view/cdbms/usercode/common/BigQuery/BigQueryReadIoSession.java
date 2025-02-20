@@ -86,7 +86,7 @@ public class BigQueryReadIoSession extends AbstractIoSession{
 			String filter = input.get(INPUT_FILTERS) != null ? (String) input.get(INPUT_FILTERS) : "";
 			String credentialsPath = (String) input.get(INPUT_CREDENTIALS_PATH);
 			long limit = input.get(INPUT_LIMIT) != null ? (long) input.get(INPUT_LIMIT) : 0;
-			@SuppressWarnings("unchecked") ArrayList<String> fields = input.get(INPUT_FIELDS) != null ? (ArrayList<String>) input.get(INPUT_FIELDS) : new ArrayList<>();
+			@SuppressWarnings("unchecked") Iterable<String> fields = input.get(INPUT_FIELDS) != null ? (Iterable<String>) input.get(INPUT_FIELDS) : new ArrayList<>();
 			// create credentials based on the authentication key file
 			GoogleCredentials credentials = ServiceAccountCredentials.fromStream(
 					new FileInputStream(credentialsPath));
@@ -106,7 +106,7 @@ public class BigQueryReadIoSession extends AbstractIoSession{
 			return new BigQueryReadResult();
 		}
 
-		private ReadSession createBqReadSession(BigQueryReadClient client, String projectId, String dataset, String table, String filter, ArrayList<String> fields) {
+		private ReadSession createBqReadSession(BigQueryReadClient client, String projectId, String dataset, String table, String filter, Iterable<String> fields) {
 			String parent = String.format("projects/%s", projectId);
 			// Format table name to connect to
 			String srcTable =

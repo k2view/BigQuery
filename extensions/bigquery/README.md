@@ -35,6 +35,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.2.4
+- Fixed fields input cast issue in BigQueryRead actor.
+
 ### v1.2.3
 - Fix root table population issue when IID field is not a string.
 - Proper parsing of datetime fields.
