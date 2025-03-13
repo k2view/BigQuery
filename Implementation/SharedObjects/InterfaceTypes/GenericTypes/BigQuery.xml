@@ -3,7 +3,14 @@
 	<Interfaces>
 		<Interface type="BigQuery" displayName="BigQuery" enabled="true" version="1.0" category="Others" techType="database">
 			<Properties>
-                <Property name="OAuthPvtKeyPath" displayName="OAuth Private Key Path" dataType="string" mandatory="true" readOnly="false" category="">
+				<Property name="authenticationMethod" displayName="Authentication Method" dataType="OptionsList" mandatory="true" readOnly="false" category="">
+					<OptionsList>
+						<Option value="default">Application Default Credentials</Option>
+						<Option value="file">Service Account Key File</Option>
+					</OptionsList>
+					<DefaultValue>default</DefaultValue>
+				</Property>
+                <Property name="OAuthPvtKeyPath" displayName="OAuth Private Key Path" dataType="string" mandatory="false" readOnly="false" category="" showExp="[[authenticationMethod==file]]">
 					<DefaultValue></DefaultValue>
 					<Comments>Path to private key file</Comments>
 				</Property>
@@ -11,7 +18,7 @@
 					<DefaultValue></DefaultValue>
 					<Comments>BigQuery project id</Comments>
 				</Property>
-                <Property name="snapshotViaStorageApi" displayName="Use BigQuery Storage API for Data Snapshots" dataType="boolean" mandatory="true" readOnly="false" category="Catalog Settings">
+                <Property name="snapshotViaStorageApi" displayName="Use BigQuery Storage API for Data Snapshots" dataType="boolean" mandatory="true" readOnly="false" category="">
 					<DefaultValue>false</DefaultValue>
 					<Comments></Comments>
 				</Property>

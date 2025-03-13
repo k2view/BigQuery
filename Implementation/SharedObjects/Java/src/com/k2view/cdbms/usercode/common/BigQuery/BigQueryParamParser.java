@@ -3,15 +3,10 @@ package com.k2view.cdbms.usercode.common.BigQuery;
 import static com.google.cloud.bigquery.Field.Mode.REPEATED;
 import static com.k2view.fabric.common.ParamConvertor.toBuffer;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringWriter;
 import java.lang.reflect.Type;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.sql.Blob;
-import java.sql.Clob;
-import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -21,8 +16,6 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -45,18 +38,19 @@ import com.google.cloud.bigquery.LegacySQLTypeName;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.gson.JsonObject;
-import com.google.type.Interval;
 import com.k2view.fabric.common.ByteStream;
+import com.k2view.fabric.common.Json;
 import com.k2view.fabric.common.Log;
 import com.k2view.fabric.common.ParamConvertor;
-import com.k2view.fabric.common.Util;
 
 public class BigQueryParamParser {
     private static final String BQ_DATETIME_FORMAT = "yyyy-MM-dd HH:mm:ss.SSSSSS";
     private static final String BQ_TIME_FORMAT = "HH:mm:ss.SSSSSS";
     private static final Log log = Log.a(BigQueryParamParser.class);
 
-    private BigQueryParamParser() {}
+    private BigQueryParamParser() {
+    }
+
     private static QueryParameterValue iteratorToBqArray(Iterator<?> iterator) {
         if (iterator == null) {
             return null;
@@ -109,8 +103,10 @@ public class BigQueryParamParser {
             case JSON:
                 return JsonObject.class;
             case INTERVAL:
-                // TO-DO Handle interval
-                return Interval.class;
+                return String.class;
+            case RANGE:
+                return Map.class;
+            // return String.class;
         }
         throw new IllegalArgumentException("Unsupported StandardSQLTypeName type " + type);
     }
@@ -182,7 +178,7 @@ public class BigQueryParamParser {
             return BigQueryParamParser.iteratorToBqArray(itr.iterator());
         }
         if (param instanceof Boolean b) {
-            return  QueryParameterValue.bool(b);
+            return QueryParameterValue.bool(b);
         }
         if (param instanceof byte[] bytes) {
             return QueryParameterValue.bytes(bytes);
@@ -210,7 +206,8 @@ public class BigQueryParamParser {
             return QueryParameterValue.json((JsonObject) param);
         }
         if (param instanceof Map) {
-            @SuppressWarnings("unchecked") Map<String, Object> paramMap = (Map<String, Object>) param;
+            @SuppressWarnings("unchecked")
+            Map<String, Object> paramMap = (Map<String, Object>) param;
             Map<String, QueryParameterValue> struct = new HashMap<>();
             for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
                 struct.put(entry.getKey(), parseToBqParam(entry.getValue()));
@@ -231,8 +228,10 @@ public class BigQueryParamParser {
 
     public static Object parseBqValue(Field field, FieldValue fieldValue, boolean isInRepeated) {
         LegacySQLTypeName type = field.getType();
+
         if (fieldValue.isNull() ||
-                (fieldValue.getAttribute() == FieldValue.Attribute.PRIMITIVE && "null".equalsIgnoreCase(fieldValue.getStringValue()))) {
+                (fieldValue.getAttribute() == FieldValue.Attribute.PRIMITIVE
+                        && "null".equalsIgnoreCase(fieldValue.getStringValue()))) {
             return null;
         }
         if (field.getMode() == REPEATED && !isInRepeated) {
@@ -249,6 +248,7 @@ public class BigQueryParamParser {
                 case FLOAT64:
                     return fieldValue.getDoubleValue();
                 case BIGNUMERIC:
+                    return fieldValue.getValue();
                 case NUMERIC:
                     return fieldValue.getNumericValue();
                 case BOOL:
@@ -258,7 +258,7 @@ public class BigQueryParamParser {
                 case TIMESTAMP:
                     return Timestamp.from(fieldValue.getTimestampInstant());
                 case DATE:
-                    return ParamConvertor.toDate(fieldValue.getValue());
+                    return fieldValue.getValue();
                 case TIME:
                     return fieldValue.getValue();
                 case DATETIME:
@@ -277,7 +277,7 @@ public class BigQueryParamParser {
                 case STRUCT:
                     FieldValueList recordValue = fieldValue.getRecordValue();
                     Map<String, Object> valuesMap = new LinkedHashMap<>();
-                    int recordValueIndex=0;
+                    int recordValueIndex = 0;
                     for (FieldValue innerValue : recordValue) {
                         Field innerField = field.getSubFields().get(recordValueIndex++);
                         valuesMap.put(innerField.getName(), parseBqValue(innerField, innerValue, false));
@@ -286,12 +286,15 @@ public class BigQueryParamParser {
                 case ARRAY:
                     List<FieldValue> repeatedValue = fieldValue.getRepeatedValue();
                     List<Object> values = new ArrayList<>();
-                    int repeatedValueIndex=0;
+                    int repeatedValueIndex = 0;
                     for (FieldValue innerValue : repeatedValue) {
                         Field innerField = field.getSubFields().get(repeatedValueIndex++);
                         values.add(parseBqValue(innerField, innerValue, false));
                     }
                     return values;
+                case RANGE:
+                    return fieldValue.getRangeValue().getValues();
+                // return Json.get().toJson(fieldValue.getRangeValue().getValues());
                 default:
                     return fieldValue.getValue();
             }
@@ -307,7 +310,7 @@ public class BigQueryParamParser {
         if (value == null) {
             return null;
         }
-        if(org.apache.avro.Schema.Type.UNION.equals(schemaType)) {
+        if (org.apache.avro.Schema.Type.UNION.equals(schemaType)) {
             typesList = field.schema().getTypes();
             logicalType = typesList.get(typesList.size() - 1).getLogicalType();
         } else {
@@ -323,148 +326,256 @@ public class BigQueryParamParser {
             return new java.sql.Date(epochDays * 24L * 60 * 60 * 1000); // Convert days to milliseconds
         } else if ("datetime".equalsIgnoreCase(logicalTypeString)) {
             return LocalDateTime.parse(value.toString());
-        } else if ("time-micros".equalsIgnoreCase(logicalTypeString)){
+        } else if ("time-micros".equalsIgnoreCase(logicalTypeString)) {
             long timeInMicros = (Long) value;
-            return LocalTime.ofSecondOfDay(timeInMicros/1000000);
+            return LocalTime.ofSecondOfDay(timeInMicros / 1000000);
         } else if ("time-millis".equalsIgnoreCase(logicalTypeString)) {
             return LocalTime.ofSecondOfDay(((int) value) / 1000);
         } else if ("timestamp-micros".equalsIgnoreCase(logicalTypeString)) {
             long timestampInMicros = (Long) value;
             long milliseconds = timestampInMicros / 1_000;
             int nanoseconds = (int) (timestampInMicros % 1_000) * 1_000;
-        
+
             Instant instant = Instant.ofEpochMilli(milliseconds).plusNanos(nanoseconds);
             return Timestamp.from(instant);
-        }
-         else if ("timestamp-millis".equalsIgnoreCase(logicalTypeString)){
+        } else if ("timestamp-millis".equalsIgnoreCase(logicalTypeString)) {
             // TO-DO check if reachable
             log.error("convertGenericData: Cannot parse timestamp " + value + ": Not supported");
             throw new RuntimeException();
-        } else if("decimal".equalsIgnoreCase(logicalTypeString)) {
+        } else if ("decimal".equalsIgnoreCase(logicalTypeString)) {
             Conversions.DecimalConversion conversion = new Conversions.DecimalConversion();
-            LogicalTypes.Decimal decimalLogicalType = (LogicalTypes.Decimal)logicalType;
+            LogicalTypes.Decimal decimalLogicalType = (LogicalTypes.Decimal) logicalType;
             return conversion.fromBytes((ByteBuffer) value, field.schema(), decimalLogicalType);
         } else if (value instanceof Utf8) {
             return value.toString();
-        } else if(value instanceof GenericData.Array){
+        } else if (value instanceof GenericData.Array) {
             ArrayList<Object> internalArr = new ArrayList<>();
-            for(Object item : (GenericData.Array<?>) value){
+            for (Object item : (GenericData.Array<?>) value) {
                 internalArr.add(parseAvroValue(item, field));
             }
             return internalArr;
-        } else if(value instanceof GenericData.Record) {
+        } else if (value instanceof GenericData.Record) {
             // GenericData.Record=Struct
             GenericData.Record genericDataRecord = (GenericData.Record) value;
-            Map<Object, Object> res = new LinkedHashMap<>();
             org.apache.avro.Schema recordSchema = genericDataRecord.getSchema();
+            if ("interval".equalsIgnoreCase(recordSchema.getName())) {
+                int months = genericDataRecord.hasField("months") ? (Integer) genericDataRecord.get("months") : 0;
+                int days = genericDataRecord.hasField("days") ? (Integer) genericDataRecord.get("days") : 0;
+                int hours = genericDataRecord.hasField("hours") ? (Integer) genericDataRecord.get("hours") : 0;
+                int minutes = genericDataRecord.hasField("minutes") ? (Integer) genericDataRecord.get("minutes")
+                        : 0;
+                double seconds = genericDataRecord.hasField("seconds") ? (Double) genericDataRecord.get("seconds")
+                        : 0.0;
+
+                int years = months / 12;
+                int remainingMonths = months % 12;
+
+                String yearsMonthsSign = (months >= 0) ? "+" : "-";
+                String daysSign = (days >= 0) ? "+" : "-";
+                String timeSign = (hours >= 0 || minutes >= 0 || seconds >= 0) ? "+" : "-";
+
+                return String.format("%s%d-%d %s%d %s%d:%d:%.3f",
+                        yearsMonthsSign, Math.abs(years), Math.abs(remainingMonths),
+                        daysSign, Math.abs(days),
+                        timeSign, Math.abs(hours), Math.abs(minutes), Math.abs(seconds));
+            }
+            Map<Object, Object> res = new LinkedHashMap<>();
             for (Schema.Field innerField : recordSchema.getFields()) {
                 res.put(innerField.name(), parseAvroValue(genericDataRecord.get(innerField.name()), innerField));
             }
+            // if ("RANGE".equals(recordSchema.getProp("sqlType"))) {
+            // return Json.get().toJson(res);
+            // }
             return res;
         } else {
             return value;
         }
     }
 
-    static Object parseToBqData(Object param) {
-        if (param == null) {
+    public static Object parseToBqByField(Object param, Field field) {
+        if (param == null || field == null) {
             return null;
         }
-        
-        if (param instanceof String) {
-            return param;
-        }
-        
-        if (param instanceof Number) {
-            if (param instanceof BigDecimal bigDecimal) {
-                return bigDecimal.scale() > 9 ? bigDecimal.toPlainString() : bigDecimal; 
-            }
-            return param; // BigQuery supports Java numeric types natively
-        }
-        
-        if (param instanceof Boolean) {
-            return param;
-        }
-        
-        if (param instanceof byte[] bytes) {
-            return bytes; // BigQuery supports BYTES directly
-        }
-        
-        if (param instanceof ByteBuffer byteBuffer) {
-            return byteBuffer.array(); // Convert to byte array
-        }
-        
-        if (param instanceof Timestamp timestamp) {
-            return timestamp.toInstant().toString(); // Convert to ISO 8601 format
-        }
-        
-        if (param instanceof Time time) {
-            return time.toLocalTime().toString(); // Format: HH:mm:ss.SSS
-        }
-        
-        if (param instanceof LocalTime localTime) {
-            return localTime.toString(); // Format: HH:mm:ss.SSS
-        }
-        
-        if (param instanceof java.sql.Date sqlDate) {
-            return sqlDate.toString(); // YYYY-MM-DD
-        }
 
-        if (param instanceof Date utilDate) {
-            return Instant.ofEpochMilli(utilDate.getTime()).atZone(ZoneId.systemDefault()).toLocalDate().toString();
-        }
-        
-        if (param instanceof LocalDate localDate) {
-            return localDate.toString(); // Format: YYYY-MM-DD
-        }
-        
-        if (param instanceof LocalDateTime localDateTime) {
-            return localDateTime.toString().replace("T", " "); // Format: YYYY-MM-DD HH:mm:ss.SSS
-        }
-        
-        if (param instanceof Instant instant) {
-            return instant.toString(); // Format: ISO 8601
-        }
-        
-        if (param instanceof Clob clob) {
-            return Util.rte(() -> clobToString(clob));
-        }
-        
-        if (param instanceof Collection<?> collection) {
-            List<Object> convertedList = new ArrayList<>();
-            for (Object item : collection) {
-                convertedList.add(parseToBqData(item)); // Recursively convert list elements
+        boolean isRepeated = field.getMode() == Field.Mode.REPEATED;
+        if (isRepeated) {
+
+            if (!(param instanceof Iterable)) {
+                throw new IllegalArgumentException("Expected an iterable for repeated field: " + field.getName());
             }
-            return convertedList;
-        }
-        
-        if (param instanceof Object[] array) {
-            return Arrays.stream(array).map(BigQueryParamParser::parseToBqData).toList();
-        }
-        
-        if (param instanceof Map<?, ?> map) {
-            Map<String, Object> convertedMap = new HashMap<>();
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
-                if (entry.getKey() instanceof String key) {
-                    convertedMap.put(key, parseToBqData(entry.getValue())); // Recursively convert map values
-                }
+            Iterable<?> iterableParam = (Iterable<?>) param;
+            List<Object> parsedList = new ArrayList<>();
+            Iterator<?> iterator = iterableParam.iterator();
+            while (iterator.hasNext()) {
+                parsedList.add(parseUnrepeatedValue(iterator.next(), field));
             }
-            return convertedMap; // Return a properly structured map
+            return parsedList;
+        } else {
+            return parseUnrepeatedValue(param, field);
         }
-        
-        throw new IllegalArgumentException("Unsupported data type: " + param.getClass().getName());
     }
-    
-    private static String clobToString(Clob clob) throws IOException, SQLException {
-        if (clob == null) return null;
-        try (Reader reader = clob.getCharacterStream(); StringWriter writer = new StringWriter()) {
-            char[] buffer = new char[1024];
-            int length;
-            while ((length = reader.read(buffer)) != -1) {
-                writer.write(buffer, 0, length);
-            }
-            return writer.toString();
+
+    private static Object parseUnrepeatedValue(Object param, Field field) {
+        switch (field.getType().getStandardType()) {
+            case STRING:
+                return param.toString();
+
+            case INT64:
+                return toLong(param);
+
+            case FLOAT64:
+                return toDouble(param);
+
+            case BOOL:
+                return toBoolean(param);
+
+            case BYTES:
+                return toByteArray(param);
+
+            case TIMESTAMP:
+                return toTimestampString(param);
+
+            case DATE:
+                return toDateString(param);
+
+            case TIME:
+                return toTimeString(param);
+
+            case DATETIME:
+                return toDateTimeString(param);
+
+            case NUMERIC:
+            case BIGNUMERIC:
+                return toBigDecimalString(param);
+
+            case STRUCT:
+                return toStruct(param, field);
+
+            case ARRAY:
+                return toArray(param, field);
+
+            case INTERVAL:
+                return param;
+
+            case GEOGRAPHY:
+                // BigQuery expects GEOGRAPHY as a WKT (Well-Known Text) or GeoJSON string
+                return param.toString(); // Ensure the value is in WKT or GeoJSON format
+
+            case JSON:
+                // Ensure JSON is stored as a valid string
+                return param instanceof String ? param : Json.get().toJson(param);
+
+            case RANGE:
+                return param;
+            // return Json.get().fromJson((String) param);
+            default:
+                throw new IllegalArgumentException("Unsupported BigQuery field: " + field);
         }
+    }
+
+    private static Long toLong(Object param) {
+        if (param instanceof Number num) {
+            return num.longValue();
+        }
+        throw new IllegalArgumentException("Expected INT64 but received: " + param.getClass().getName());
+    }
+
+    private static Double toDouble(Object param) {
+        if (param instanceof Number num) {
+            return num.doubleValue();
+        }
+        throw new IllegalArgumentException("Expected FLOAT64 but received: " + param.getClass().getName());
+    }
+
+    private static Boolean toBoolean(Object param) {
+        return ParamConvertor.toBool(param);
+    }
+
+    private static byte[] toByteArray(Object param) {
+        if (param instanceof byte[] b) {
+            return b;
+        } else if (param instanceof ByteBuffer byteBuffer) {
+            return byteBuffer.array();
+        }
+        throw new IllegalArgumentException("Expected BYTES but received: " + param.getClass().getName());
+    }
+
+    private static String toTimestampString(Object param) {
+        if (param instanceof Timestamp ts) {
+            return ts.toInstant().toString();
+        } else if (param instanceof Instant instant) {
+            return instant.toString();
+        } else if (param instanceof String s) {
+            return s;
+        }
+        throw new IllegalArgumentException("Expected TIMESTAMP but received: " + param.getClass().getName());
+    }
+
+    private static String toDateString(Object param) {
+        if (param instanceof LocalDate localDate) {
+            return localDate.toString();
+        } else if (param instanceof java.sql.Date sqlDate) {
+            return sqlDate.toString();
+        } else if (param instanceof Date utilDate) {
+            return Instant.ofEpochMilli(utilDate.getTime()).atZone(ZoneId.systemDefault()).toLocalDate().toString();
+        } else if (param instanceof String s) {
+            return s;
+        }
+        throw new IllegalArgumentException("Expected DATE but received: " + param.getClass().getName());
+    }
+
+    private static String toTimeString(Object param) {
+        if (param instanceof Time time) {
+            return time.toLocalTime().toString();
+        } else if (param instanceof LocalTime localTime) {
+            return localTime.toString();
+        } else if (param instanceof String s) {
+            return s;
+        }
+        throw new IllegalArgumentException("Expected TIME but received: " + param.getClass().getName());
+    }
+
+    private static String toDateTimeString(Object param) {
+        if (param instanceof LocalDateTime localDateTime) {
+            return localDateTime.toString().replace("T", " ");
+        } else if (param instanceof String s) {
+            return s;
+        }
+        throw new IllegalArgumentException("Expected DATETIME but received: " + param.getClass().getName());
+    }
+
+    private static Object toBigDecimalString(Object param) {
+        if (param instanceof BigDecimal bigDecimal) {
+            return bigDecimal.scale() > 9 ? bigDecimal.toPlainString() : bigDecimal;
+        } else if (param instanceof Number number) {
+            return number;
+        }
+        throw new IllegalArgumentException("Expected NUMERIC/BIGNUMERIC but received: " + param.getClass().getName());
+    }
+
+    private static List<Object> toArray(Object param, Field field) {
+        if (!(param instanceof Iterable<?> iterable)) {
+            throw new IllegalArgumentException("Expected an Iterable but received: " + param.getClass().getName());
+
+        }
+        Field elementField = field.getSubFields().get(0); // Assuming only one subfield for ARRAY
+        List<Object> convertedList = new ArrayList<>();
+        for (Object item : iterable) {
+            convertedList.add(parseToBqByField(item, elementField)); // Recursively convert list elements
+        }
+        return convertedList;
+    }
+
+    private static Map<String, Object> toStruct(Object param, Field field) {
+        if (!(param instanceof Map<?, ?> map)) {
+            throw new IllegalArgumentException("Expected a Map but received: " + param.getClass().getName());
+        }
+        Map<String, Object> convertedMap = new HashMap<>();
+        for (Field subField : field.getSubFields()) {
+            Object value = map.get(subField.getName());
+            convertedMap.put(subField.getName(), parseToBqByField(value, subField));
+        }
+        return convertedMap;
     }
 
 }

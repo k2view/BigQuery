@@ -20,7 +20,7 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 3. **DbCommand**: 
    - Not optimized for high-throughput reads/writes compared to the Storage API.
    - The batch option in DbCommand is not supported for BigQuery.
-
+4. **TDM Table-Level**: Data retention is not supported when the source table contains a complex field (array/struct/range), so the option "Do not retain" must be selected. 
 ---
 
 ## TDM Table-Level Tasks:
@@ -29,11 +29,25 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
      - BQTableLevelExtractByQuery - uses DbCommand.
      - BQTableLevelExtractByStorage - uses BigQueryRead actor.
      - BQTableLevelLoadByStorage - uses BigQueryWrite actor.
-   - To specify which flows to use, add a row in the MTable `TableLevelInterfaces` for your BigQuery interface. 
+   - To specify which flows to use, add a row in the MTable `TableLevelDefinitions` for your BigQuery interface. 
 
 ---
 
 ## Change Log
+
+### v1.3.0
+#### Added
+- Add support for RANGE type.
+- Add support for Google Application Default Credentials.
+- Upgrade BigQuery SDK from 2.19.1 to 2.48.1.
+
+#### Fixed
+- Fix invalid class cast in discovery when last LU deployed is not k2_ws.
+- Change monitor behavior - total fields updated only when done.
+- Fix NPE in snapshot via storage
+- Data types parsing
+- Creation of QueryJob with interface project id instead of project id in service account file.
+- Other minor fixes and refactorings
 
 ### v1.2.4
 - Fixed fields input cast issue in BigQueryRead actor.

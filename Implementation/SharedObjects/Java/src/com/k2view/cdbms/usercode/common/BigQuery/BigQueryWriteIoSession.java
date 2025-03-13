@@ -1,21 +1,24 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
-import com.google.cloud.bigquery.storage.v1.TableName;
-import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
-import com.k2view.cdbms.usercode.common.BigQuery.BigQueryMetadata;
-import com.k2view.fabric.common.Log;
-import com.k2view.fabric.common.ParamConvertor;
-import com.k2view.fabric.common.Util;
-import com.k2view.fabric.common.io.AbstractIoSession;
-import com.k2view.fabric.common.io.IoCommand;
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import javax.annotation.concurrent.GuardedBy;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-public class BigQueryWriteIoSession extends AbstractIoSession{
+import javax.annotation.concurrent.GuardedBy;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import com.google.cloud.bigquery.Schema;
+import com.google.cloud.bigquery.TableId;
+import com.google.cloud.bigquery.storage.v1.Exceptions.AppendSerializtionError;
+import com.google.cloud.bigquery.storage.v1.TableName;
+import com.google.cloud.bigquery.storage.v1.WriteStream.Type;
+import com.k2view.fabric.common.Log;
+import com.k2view.fabric.common.ParamConvertor;
+import com.k2view.fabric.common.Util;
+import com.k2view.fabric.common.io.IoCommand;
+
+public class BigQueryWriteIoSession extends BigQuerySession {
 	public static final String INPUT_DATASET = "dataset";
 	public static final String INPUT_TABLE = "table";
 	public static final String INPUT_STREAM_TYPE = "streamType";
@@ -37,18 +40,12 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 	@GuardedBy("batchDataLock")
 	private int accumulatedBatchSize = 0;
 
-	private final String projectId;
-	private final String credentialsFilePath;
 	private final BigQueryWriteStatement statement;
 	private boolean inTransaction;
-	private final String interfaceName;
 
-	public BigQueryWriteIoSession(String interfaceName, String projectId, String credentialsFilePath) {
-		this.projectId = projectId;
-		this.credentialsFilePath = credentialsFilePath;
-		this.interfaceName = interfaceName;
-		statement = new BigQueryWriteStatement();
-		inTransaction = false;
+	public BigQueryWriteIoSession(Map<String, Object> sessionProps) {
+		super(sessionProps);
+		this.statement = new BigQueryWriteStatement();
 	}
 
 	@Override
@@ -117,62 +114,78 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 
 	private void writeToBigQuery() throws Exception {
 		// Writes to the BigQuery write stream and clears the current batch data array.
-		if (accumulatedBatchSize <= 0) return;
+		if (accumulatedBatchSize <= 0)
+			return;
 		synchronized (writeStreamLock) {
 			for (Map.Entry<TableName, JSONArray> entry : tableToBatchData.entrySet()) {
 				TableName tableName = entry.getKey();
 				JSONArray tableBatchData = entry.getValue();
-				writeStream.write(tableName.getDataset(), tableName.getTable(), tableBatchData);
+				try {
+					writeStream.write(tableName.getDataset(), tableName.getTable(), tableBatchData);
+				} catch (AppendSerializtionError e) {
+					log.error("Error per row index: {}", e.getRowIndexToErrorMessage());
+					throw e;
+				}
 			}
 		}
 		tableToBatchData.clear();
-		accumulatedBatchSize =0;
+		accumulatedBatchSize = 0;
 	}
 
 	public class BigQueryWriteStatement implements IoCommand.Statement {
+		Schema tableSchema;
+
 		@Override
 		public IoCommand.Result execute(Object... objects) throws UnsupportedOperationException {
 			throw new UnsupportedOperationException("Only batch writing is supported.");
 		}
 
 		/*
-		 Should be called with an argument of type Map<String, Object>, for each object to be inserted.
-		 Expected inputs in objects[0] (Map<String, Object> arg):
-			 batchSize (Optional, int),
-			 data (Mandatory, Map),
-			 interface (Mandatory, string),
-			 dataset (Mandatory, string),
-			 table (Mandatory, string),
-			 BigQueryIoProvider.OPERATION_PARAM_NAME=BigQueryIoProvider.Operation.WRITE
+		 * Should be called with an argument of type Map<String, Object>, for each
+		 * object to be inserted.
+		 * Expected inputs in objects[0] (Map<String, Object> arg):
+		 * batchSize (Optional, int),
+		 * data (Mandatory, Map),
+		 * interface (Mandatory, string),
+		 * dataset (Mandatory, string),
+		 * table (Mandatory, string),
+		 * BigQueryIoProvider.OPERATION_PARAM_NAME=BigQueryIoProvider.Operation.WRITE
 		 */
 		@Override
-		public void batch(Object... objects) throws Exception{
-			if (objects == null || objects.length==0 || !(objects[0] instanceof Map)) {
-				throw new IllegalArgumentException("Either no args were provided, or wrong type of args. The first argument must be of type Map");
+		public void batch(Object... objects) throws Exception {
+			if (objects == null || objects.length == 0 || !(objects[0] instanceof Map)) {
+				throw new IllegalArgumentException(
+						"Either no args were provided, or wrong type of args. The first argument must be of type Map");
 			}
-			@SuppressWarnings("unchecked") Map<String, Object> input = (Map<String, Object>) objects[0];
+			@SuppressWarnings("unchecked")
+			Map<String, Object> input = (Map<String, Object>) objects[0];
 			if (!inTransaction) {
 				throw new IllegalStateException("Must be in transaction!");
 			}
-			TableName parentTable = TableName.of(projectId, (String) input.get(INPUT_DATASET), (String) input.get(INPUT_TABLE));
+			TableName parentTable = TableName.of(projectId, (String) input.get(INPUT_DATASET),
+					(String) input.get(INPUT_TABLE));
+			if (this.tableSchema == null) {
+				this.tableSchema = client()
+						.getTable(TableId.of((String) input.get(INPUT_DATASET), (String) input.get(INPUT_TABLE)))
+						.getDefinition().getSchema();
+			}
 			// When called in the first time, will initialize the BigQuery write stream.
 			synchronized (writeStreamLock) {
 				if (writeStream == null) {
 					String streamType = (String) input.get(INPUT_STREAM_TYPE);
-					WriteStreamFactory writeStreamFactory = new WriteStreamFactory();
 					if (STREAM_TYPE_PENDING.equals(streamType)) {
-						writeStream = writeStreamFactory.createWriteStream(Type.PENDING, projectId, credentialsFilePath);
-					} else if (STREAM_TYPE_DEFAULT.equals(streamType)){
-						writeStream = writeStreamFactory.createWriteStream(projectId, credentialsFilePath);
+						writeStream = WriteStream.createWriteStream(Type.PENDING, projectId, credentials());
+					} else if (STREAM_TYPE_DEFAULT.equals(streamType)) {
+						writeStream = WriteStream.createWriteStream(projectId, credentials());
 					} else {
-						writeStream = writeStreamFactory.createWriteStream(Type.UNRECOGNIZED, projectId, credentialsFilePath);
+						writeStream = WriteStream.createWriteStream(Type.UNRECOGNIZED, projectId, credentials());
 					}
 				}
 			}
 
 			// Take the default batch size if wasn't provided
 			long batchSize = ParamConvertor.toInteger(input.get(INPUT_BATCH_SIZE));
-			if (batchSize<=0) {
+			if (batchSize <= 0) {
 				batchSize = DEFAULT_BATCH_SIZE;
 			}
 
@@ -181,7 +194,7 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 			Map<String, Object> data = (Map<String, Object>) input.get(INPUT_DATA);
 			if (!Util.isEmpty(data)) {
 				data.replaceAll((k, v) -> {
-					return BigQueryParamParser.parseToBqData(v);
+					return BigQueryParamParser.parseToBqByField(v, tableSchema.getFields().get(k));
 				});
 			}
 			JSONObject jsonObject = new JSONObject(data);
@@ -199,6 +212,11 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 				}
 			}
 		}
+
+		@Override
+		public void close() throws Exception {
+			this.tableSchema = null;
+		}
 	}
 
 	@Override
@@ -209,6 +227,7 @@ public class BigQueryWriteIoSession extends AbstractIoSession{
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T getMetadata(Map<String, Object> params) throws Exception {
-		return (T) new BigQueryMetadata(interfaceName, credentialsFilePath, null, null, projectId, params);
+		return (T) new BigQueryMetadata(interfaceName, null, null, client(), projectId, this.snapshotViaStorageApi,
+				params);
 	}
 }

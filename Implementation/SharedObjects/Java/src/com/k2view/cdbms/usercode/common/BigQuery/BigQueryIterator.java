@@ -1,21 +1,23 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.Iterator;
+
+import org.apache.avro.generic.GenericDatumReader;
+import org.apache.avro.generic.GenericRecord;
+import org.apache.avro.io.BinaryDecoder;
+import org.apache.avro.io.DecoderFactory;
+
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
 import com.google.cloud.bigquery.storage.v1.ReadRowsRequest;
 import com.google.cloud.bigquery.storage.v1.ReadRowsResponse;
 import com.google.protobuf.ByteString;
 import com.k2view.fabric.common.Log;
 import com.k2view.fabric.common.Util;
-import org.apache.avro.generic.GenericDatumReader;
-import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.io.DecoderFactory;
-
-import java.util.Collections;
-import java.util.Iterator;
 
 // Big Query Generic Record Iterator
-public class BigQueryIterator implements  Iterator<GenericRecord> {
+public class BigQueryIterator implements Iterator<GenericRecord> {
     private final Log log = Log.a(this.getClass());
 
     private BigQueryReadClient readClient;
@@ -26,21 +28,28 @@ public class BigQueryIterator implements  Iterator<GenericRecord> {
     private final long limit;
     private long currRowsCount;
 
-    public BigQueryIterator(BigQueryReadClient readClient, String streamName, GenericDatumReader<GenericRecord> reader, long limit) {
+    private Runnable assertAborted;
+
+    public BigQueryIterator(BigQueryReadClient readClient, String streamName, GenericDatumReader<GenericRecord> reader,
+            long limit, Runnable assertAborted) throws IOException {
         this.readClient = readClient;
         this.reader = reader;
-        this.responseIterator = streamName == null ? Collections.emptyIterator() :
-                this.readClient.readRowsCallable().call(ReadRowsRequest.newBuilder().setReadStream(streamName).build()).iterator();
+        this.responseIterator = streamName == null ? Collections.emptyIterator()
+                : this.readClient.readRowsCallable()
+                        .call(ReadRowsRequest.newBuilder().setReadStream(streamName).build()).iterator();
         this.limit = Math.max(limit, 0);
         this.currRowsCount = 0;
+        this.assertAborted = assertAborted;
         advanceToNextRecord();
     }
 
     @Override
     public boolean hasNext() {
+        assertAborted.run();
         return nextRecord != null;
     }
 
+    @Override
     public GenericRecord next() {
         GenericRecord currentRecord = nextRecord;
         advanceToNextRecord();
@@ -48,11 +57,12 @@ public class BigQueryIterator implements  Iterator<GenericRecord> {
     }
 
     /**
-     * checks if the responseIterator still has next, meaning if there's still records to be read in the stream,
+     * checks if the responseIterator still has next, meaning if there's still
+     * records to be read in the stream,
      * if so decodes it and reads it.
      */
     private void advanceToNextRecord() {
-        if (this.limit > 0 && currRowsCount == this.limit){
+        if (this.limit > 0 && currRowsCount == this.limit) {
             nextRecord = null;
             return;
         }
@@ -67,12 +77,12 @@ public class BigQueryIterator implements  Iterator<GenericRecord> {
 
             }
             nextRecord = reader.read(null, binaryDecoder);
-            currRowsCount ++;
+            currRowsCount++;
         } catch (Exception e) {
             log.error("Error advancing BigQuery iterator: {}", e);
             Util.safeClose(readClient);
             readClient = null;
-            nextRecord=null;
+            nextRecord = null;
         }
     }
 }

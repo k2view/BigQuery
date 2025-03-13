@@ -37,8 +37,10 @@ public class BigQueryRead extends AbstractIoSession {
 
     private IoCommand.Result execute(Data input) throws Exception {
         // Define the statement and execute the statement "execute" function
+        Util.safeClose(command);
+        Util.safeClose(result);
         this.command = this.session.statement();
-        return this.command.execute(input.fields());
+        return command.execute(input.fields());
     }
 
     @Override
