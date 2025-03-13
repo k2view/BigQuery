@@ -15,6 +15,7 @@ public class BigQueryIoProvider implements IoProvider {
     static final String SESSION_PROP_SNAPSHOT_VIA_STORAGE = "snapshotViaStorageApi";
     static final String SESSION_PROP_CREDENTIALS_FILE = "credentialsFilePath";
     static final String SESSION_PROP_PROJECT = "project";
+    static final String SESSION_PROP_JOB_PROJECT = "jobProject";
     static final String SESSION_PROP_INTERFACE = "interface";
     static final String SESSION_PROP_AUTHENTICATION_METHOD = "authenticationMethod";
 
@@ -37,7 +38,7 @@ public class BigQueryIoProvider implements IoProvider {
         String credentialFilePath = ParamConvertor.toString(map.get("OAuthPvtKeyPath"));
         boolean snapshotViaStorageApi = ParamConvertor.toBool(map.get(SESSION_PROP_SNAPSHOT_VIA_STORAGE));
         String authenticationMethod = ParamConvertor.toString(map.get(SESSION_PROP_AUTHENTICATION_METHOD));
-
+        String queryJobsProjectId = ParamConvertor.toString(map.get("jobsProjectId"));
         map.putIfAbsent(OPERATION_PARAM_NAME, DEFAULT_OPERATION);
         // Validate that Operation is READ/WRITE/COMMAND
         // Not taking operation as is because of different class loader issue
@@ -47,7 +48,8 @@ public class BigQueryIoProvider implements IoProvider {
         Map<String, Object> sessionProps = Util.map(SESSION_PROP_AUTHENTICATION_METHOD, authenticationMethod,
                 SESSION_PROP_INTERFACE, interfaceName, SESSION_PROP_PROJECT,
                 projectId, SESSION_PROP_CREDENTIALS_FILE, credentialFilePath, SESSION_PROP_SNAPSHOT_VIA_STORAGE,
-                snapshotViaStorageApi);
+                snapshotViaStorageApi, SESSION_PROP_JOB_PROJECT,
+                queryJobsProjectId);
         if (Operation.READ == operation) {
             return new BigQueryReadIoSession(sessionProps);
         } else if (Operation.WRITE == operation) {

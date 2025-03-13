@@ -11,6 +11,9 @@
         <Property name="ProjectId">
             <Value>k2view-coe</Value>
         </Property>
+        <Property name="jobsProjectId">
+            <Value></Value>
+        </Property>
         <Property name="snapshotViaStorageApi">
             <Value>true</Value>
         </Property>

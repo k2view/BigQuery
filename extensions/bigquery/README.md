@@ -35,6 +35,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.3.1
+- Added option in interface to override query job project id.
+
 ### v1.3.0
 #### Added
 - Add support for RANGE type.

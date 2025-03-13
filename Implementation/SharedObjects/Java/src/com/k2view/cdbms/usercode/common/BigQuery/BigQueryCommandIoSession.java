@@ -81,7 +81,8 @@ public class BigQueryCommandIoSession extends BigQuerySession {
             QueryJobConfiguration queryConfig = queryJobBuilder.build();
 
             // Create the query job and wait for it to finish
-            JobId jobId = JobId.newBuilder().setProject(projectId).build();
+            JobId jobId = JobId.newBuilder()
+                    .setProject(!Util.isEmpty(queryJobsProjectId) ? queryJobsProjectId : projectId).build();
             Job queryJob = client().create(
                     JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
             queryJob = queryJob.waitFor();

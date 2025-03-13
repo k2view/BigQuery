@@ -23,6 +23,7 @@ class BigQuerySession extends AbstractIoSession {
     private final String credentialsFilePath;
     final String interfaceName;
     final String projectId;
+    final String queryJobsProjectId;
     final boolean snapshotViaStorageApi;
     
     private volatile BigQuery bqClient; // Ensures visibility across threads
@@ -38,6 +39,7 @@ class BigQuerySession extends AbstractIoSession {
                 .toBool(props.get(BigQueryIoProvider.SESSION_PROP_SNAPSHOT_VIA_STORAGE));
         this.defaultAuthenticationMethod = DEFAULT_AUTH_METHOD
                 .equalsIgnoreCase((String) props.get(BigQueryIoProvider.SESSION_PROP_AUTHENTICATION_METHOD));
+        this.queryJobsProjectId = (String) props.get(BigQueryIoProvider.SESSION_PROP_JOB_PROJECT);
     }
 
     BigQuery client() throws Exception {
