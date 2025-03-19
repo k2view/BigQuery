@@ -12,7 +12,6 @@ import java.util.Map;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.jetbrains.annotations.NotNull;
 
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.cloud.bigquery.storage.v1.BigQueryReadClient;
@@ -124,7 +123,6 @@ public class BigQueryReadIoSession extends BigQuerySession {
 		}
 
 		private class BigQueryReadResult implements Result {
-			@NotNull
 			@Override
 			public Iterator<IoCommand.Row> iterator() {
 				// Translator that translates each Generic Record read by the bq itr into

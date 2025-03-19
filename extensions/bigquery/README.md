@@ -14,26 +14,44 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ---
 
-## Limitations
-1. **Record Updates**: Updating existing records in BigQuery is not supported.
-2. **BigQueryWrite Actor**: This actor must be placed in a transaction stage.
-3. **DbCommand**: 
-   - Not optimized for high-throughput reads/writes compared to the Storage API.
-   - The batch option in DbCommand is not supported for BigQuery.
-4. **TDM Table-Level**: Data retention is not supported when the source table contains a complex field (array/struct/range), so the option "Do not retain" must be selected. 
+## Getting Started
+
+1. Install the extension.
+   > Note: If you're upgrading to v1.3 and newer from v1.2 or older, you need to restart fabric after the upgrade.
+2. Create a BigQuery interface.
+3. In interface settings, set the desired credentials method:
+   - [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
+   - [Service Account Key File](https://developers.google.com/workspace/guides/create-credentials#create_credentials_for_a_service_account) - Specify the path to the credentials json under `OAuth Private Key Path`.
+4. (Optional) Check the flag `Use BigQuery Storage API for Data Snapshots` if you wish to use the Storage API for data snapshotting done by the discovery crawler job.
+5. Set the `Datasets Project Id` to the project in which the datasets and tables exist.
+6. (Optional - defaults to `Datasets Project Id`) Set the `Query Jobs Project Id` - When running queries against BigQuery (i.e. not via Storage API), you can set this property to the project in which you'd like the query jobs to be created.
+   >In that case, please note that LU populations won't work, because the query will look for datasets in this project id and not the `Datasets Project Id` (unless you manually prepend the datasets project id to the query - select * from project.dataset.table)
+5. Redeploy the project + environments.
+6. (Optional - for TDM Table Level) - The connector provides also the flows `BQTableLevelDelete` (uses DbCommand), `BQTableLevelExtractByQuery` (uses DbCommand), `BQTableLevelExtractByStorage` (uses BigQueryRead actor), `BQTableLevelLoadByStorage` (uses BigQueryWrite actor).
+   - Add the below row to the `TableLevelDefinitions` MTable (with your preffered choice of extract flow `BQTableLevelExtractByQuery`/`BQTableLevelExtractByStorage`):
+      
+      | interface_name           | schema_name | table_name | extract_flow                   | table_order | delete_flow        | load_flow                    |
+      |--------------------------|-------------|------------|--------------------------------|-------------|--------------------|------------------------------|
+      | <Your_BigQuery_Interface>  |             |            | BQTableLevelExtractByQuery     |             | BQTableLevelDelete | BQTableLevelLoadByStorage    |
+
+   - Redeploy the `References` LU after updating the TableLevelDefinition MTable.
+
 ---
 
-## TDM Table-Level Tasks:
-   - The connector provides the below flows:
-     - BQTableLevelDelete - uses DbCommand.
-     - BQTableLevelExtractByQuery - uses DbCommand.
-     - BQTableLevelExtractByStorage - uses BigQueryRead actor.
-     - BQTableLevelLoadByStorage - uses BigQueryWrite actor.
-   - To specify which flows to use, add a row in the MTable `TableLevelDefinitions` for your BigQuery interface. 
-
+## Limitations
+1. Updating existing records in BigQuery is not supported.
+2. BigQueryWrite actor must always be placed in a transaction stage.
+3. DbCommand: 
+   - Not optimized for high-throughput reads/writes compared to the Storage API.
+   - The batch option in DbCommand is not supported for BigQuery.
+4. TDM Table-Level: Data retention is not supported when the source table contains a complex field (array/struct/range), so the option "Do not retain" must be selected in that case.
 ---
 
 ## Change Log
+
+### v1.3.2
+- Fix bytes field parsing in Storage read.
+- Remove NotNull annotation due to compilation issue.
 
 ### v1.3.1
 - Added option in interface to override query job project id.

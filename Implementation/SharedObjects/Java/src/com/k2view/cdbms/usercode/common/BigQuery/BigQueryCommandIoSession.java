@@ -10,8 +10,6 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Function;
 
-import org.jetbrains.annotations.NotNull;
-
 import com.google.cloud.bigquery.BigQueryError;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
@@ -112,7 +110,6 @@ public class BigQueryCommandIoSession extends BigQuerySession {
                 this.schemaFields = queryResult.getSchema() != null ? queryResult.getSchema().getFields() : null;
             }
 
-            @NotNull
             @Override
             public Iterator<Row> iterator() {
                 if (queryResult.getSchema() == null) {

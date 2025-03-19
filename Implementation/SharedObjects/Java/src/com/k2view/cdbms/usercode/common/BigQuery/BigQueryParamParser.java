@@ -383,10 +383,9 @@ public class BigQueryParamParser {
             for (Schema.Field innerField : recordSchema.getFields()) {
                 res.put(innerField.name(), parseAvroValue(genericDataRecord.get(innerField.name()), innerField));
             }
-            // if ("RANGE".equals(recordSchema.getProp("sqlType"))) {
-            // return Json.get().toJson(res);
-            // }
             return res;
+        } else if (value instanceof ByteBuffer bb) {
+            return bb.array();
         } else {
             return value;
         }
