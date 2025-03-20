@@ -3,10 +3,10 @@
 >
 > This version is compatible with **Fabric 8.2**.  
 > TDM Table-Level flows are compatible with **TDM 9.3**.  
-> If you're using **Fabric 8.1**, please install v1.1.x.
+> If you are using **Fabric 8.1**, please install v1.1.x.
 
 ## Overview
-The BigQuery Connector provides integration with Google's BigQuery through two Broadway actors:
+The BigQuery Connector provides integration with Google's BigQuery through the following two Broadway actors:
 1. **BigQueryRead**: Utilizes the BigQuery Storage API to read data from BigQuery tables.
 2. **BigQueryWrite**: Utilizes the BigQuery Storage API to write data to BigQuery tables.
 
@@ -17,7 +17,7 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ## Getting Started
 
 1. Install the extension.
-   > Note: If you're upgrading to v1.3 and newer from v1.2 or older, you need to restart fabric after the upgrade.
+   > Note: If you are upgrading from v1.2 or older to v1.3 and later, you need to restart fabric after the upgrade.
 2. Create a BigQuery interface.
 3. In interface settings, set the desired credentials method:
    - [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
