@@ -1,5 +1,30 @@
 tags: BigQuery
 stages:
+  Get Active Environment:
+    actors:
+      ActiveEnvironment:
+        parent: FabricSetRead
+        in:
+          key:
+            const: environment
+  Get Data Owner Project id:
+    actors:
+      DataOwnerProjectId:
+        parent: LuFunction
+        in:
+          functionName:
+            const: bqGetDatasetsProject
+          interfaceName:
+            external: interface
+            schema: string
+            mandatory: false
+          env:
+            link: ActiveEnvironment/result
+            schema: any
+            mandatory: false
+        out:
+          result:
+            schema: string
   Delete Statement:
     actors:
       Create Delete Statement:
@@ -7,10 +32,7 @@ stages:
         in:
           script:
             const: |-
-              var deleteStatement = "delete from " + schemaName + "." + tableName;
-              if (schemaName == null || schemaName == "") {
-                 deleteStatement = "delete from " + tableName;
-              }
+              var deleteStatement = "delete from `" + project + "." + schemaName + "." + tableName + "`";
               deleteStatement += " WHERE TRUE";
               deleteStatement;
           schemaName:
@@ -20,6 +42,10 @@ stages:
           tableName:
             external: table
             schema: string
+            mandatory: false
+          project:
+            link: DataOwnerProjectId/result
+            schema: any
             mandatory: false
         out:
           result:

@@ -144,6 +144,7 @@ stages:
             schema: any
             mandatory: false
           dataset:
+            link: Source Schema/value
             schema: any
             mandatory: false
         out:
@@ -170,11 +171,16 @@ stages:
   Build SQL Statements:
     actors:
       BuildReadStatement:
-        parent: StringFormat
-        height: 331
+        parent: JavaScript
+        height: 195
         in:
-          format:
-            const: select * from `${@project}.${@dataset}.${@table}` where ${@where}
+          script:
+            const: |-
+              var statement = "select * from `" + project + "." + dataset + "." + table + "`";
+              if (where) {
+                  statement = statement + " where " + where;
+              }
+              statement;
           project:
             link: DataOwnerProjectId/result
             schema: any
@@ -192,12 +198,16 @@ stages:
             schema: any
             mandatory: false
       BuildCountStatement:
-        parent: StringFormat
-        height: 275
+        parent: JavaScript
+        height: 226
         in:
-          format:
-            const: select count(*) from `${@project}.${@dataset}.${@table}` where
-              ${@where}
+          script:
+            const: |-
+              var statement = "select count(*) from `" + project + "." + dataset + "." + table + "`";
+              if (where) {
+                  statement = statement + " where " + where;
+              }
+              statement;
           project:
             link: DataOwnerProjectId/result
             schema: any
@@ -225,7 +235,7 @@ stages:
             link: Source Interface/value
           sql:
             const: null
-            link: BuildReadStatement/string
+            link: BuildReadStatement/result
           params:
             link: ParseParamsValues/parsedParamsValues
         out:
@@ -271,7 +281,7 @@ stages:
             external: sourceInterface
           sql:
             const: null
-            link: BuildCountStatement/string
+            link: BuildCountStatement/result
           params:
             link: ParseParamsValues/parsedParamsValues
         out:

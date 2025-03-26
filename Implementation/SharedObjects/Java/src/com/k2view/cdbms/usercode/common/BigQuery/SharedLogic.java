@@ -133,8 +133,8 @@ public class SharedLogic {
         return List.of(row);
     }
 
-    public static String bqGetDatasetsProject(String interfaceName) {
-        return ((GenericInterface) InterfacesManager.getInstance().getTypedInterface(interfaceName)).getProperty(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
+    public static String bqGetDatasetsProject(String interfaceName, String env) {
+        return ((GenericInterface) InterfacesManager.getInstance().getTypedInterface(interfaceName, env)).getProperty(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
     }
     
 

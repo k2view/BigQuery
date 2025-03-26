@@ -50,6 +50,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.3.4
+- Fix table-level flows
+
 ### v1.3.3
 - Fixed projects specification in BigQuery actors and TDM-Table level flows.
 

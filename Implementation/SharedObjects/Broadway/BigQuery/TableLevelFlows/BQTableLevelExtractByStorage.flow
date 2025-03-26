@@ -144,6 +144,7 @@ stages:
             schema: any
             mandatory: false
           dataset:
+            link: Source Schema/value
             schema: any
             mandatory: false
         out:
@@ -170,12 +171,16 @@ stages:
   Build Count Statement:
     actors:
       BuildCountStatement:
-        parent: StringFormat
-        height: 551
+        parent: JavaScript
+        height: 450
         in:
-          format:
-            const: select count(*) from `${@project}.${@dataset}.${@table}` where
-              ${@where}
+          script:
+            const: |-
+              var statement = "select count(*) from `" + project + "." + dataset + "." + table + "`";
+              if (where) {
+                  statement = statement + " where " + where;
+              }
+              statement;
           project:
             link: DataOwnerProjectId/result
             schema: any
@@ -269,7 +274,7 @@ stages:
             external: sourceInterface
           sql:
             const: null
-            link: BuildCountStatement/string
+            link: BuildCountStatement/result
           params:
             link: ParseParamsValues/parsedParamsValues
         out:
