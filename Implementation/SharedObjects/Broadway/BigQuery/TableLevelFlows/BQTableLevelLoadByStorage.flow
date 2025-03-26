@@ -93,7 +93,7 @@ stages:
             const: null
             link: Get Commit Size/result
           streamType:
-            const: DEFAULT
+            const: PENDING
           dataset:
             link: Target Schema/value
           table:

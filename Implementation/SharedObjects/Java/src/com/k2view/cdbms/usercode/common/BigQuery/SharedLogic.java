@@ -17,6 +17,7 @@ import com.k2view.cdbms.sync.*;
 import com.k2view.cdbms.lut.*;
 import com.k2view.cdbms.shared.logging.LogEntry.*;
 import com.k2view.cdbms.func.oracle.OracleToDate;
+import com.k2view.cdbms.interfaces.GenericInterface;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.StandardSQLTypeName;
 import com.google.cloud.bigquery.FieldValue.Attribute;
@@ -130,6 +131,10 @@ public class SharedLogic {
         }
         row.replace(iidColName, newVal);
         return List.of(row);
+    }
+
+    public static String bqGetDatasetsProject(String interfaceName) {
+        return ((GenericInterface) InterfacesManager.getInstance().getTypedInterface(interfaceName)).getProperty(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
     }
     
 

@@ -29,7 +29,6 @@ import com.k2view.fabric.common.io.basic.IoSimpleRow;
 public class BigQueryReadIoSession extends BigQuerySession {
 	// private final Log log = Log.a(this.getClass());
 
-	public static final String INPUT_PROJECT_ID = "projectId";
 	public static final String INPUT_CREDENTIALS_PATH = "credentialsPath";
 	public static final String INPUT_DATASET = "dataset";
 	public static final String INPUT_TABLE = "table";
@@ -78,7 +77,7 @@ public class BigQueryReadIoSession extends BigQuerySession {
 			// Set up the BigQueryReadClient with credentials
 			assertAborted.run();
 			this.client = BigQueryReadClient.create(settings);
-			ReadSession session = createBqReadSession(client, projectId, dataset, table, filter, fields);
+			ReadSession session = createBqReadSession(dataset, table, filter, fields);
 			String streamName = session.getStreamsCount() > 0 ? session.getStreams(0).getName() : null;
 			String avroSchemaString = session.getAvroSchema().getSchema();
 			org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(avroSchemaString);
@@ -98,13 +97,14 @@ public class BigQueryReadIoSession extends BigQuerySession {
 			client = null;
 		}
 
-		private ReadSession createBqReadSession(BigQueryReadClient client, String projectId, String dataset,
+		private ReadSession createBqReadSession(String dataset,
 				String table, String filter, Iterable<String> fields) {
-			String parent = String.format("projects/%s", projectId);
+			// The project to initiate the read request from
+			String parent = String.format("projects/%s", userProjectId);
 			// Format table name to connect to
 			String srcTable = String.format(
 					"projects/%s/datasets/%s/tables/%s",
-					projectId, dataset, table);
+					datasetsProjectId, dataset, table);
 			// Options to utilize the filter input for the read
 			ReadSession.TableReadOptions options = ReadSession.TableReadOptions.newBuilder()
 					.addAllSelectedFields(fields).setRowRestriction(filter)
@@ -154,7 +154,7 @@ public class BigQueryReadIoSession extends BigQuerySession {
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T getMetadata(Map<String, Object> params) throws Exception {
-		return (T) new BigQueryMetadata(interfaceName, null, this, client(), projectId, this.snapshotViaStorageApi,
+		return (T) new BigQueryMetadata(interfaceName, null, this, client(), datasetsProjectId, this.snapshotViaStorageApi,
 				params);
 	}
 }

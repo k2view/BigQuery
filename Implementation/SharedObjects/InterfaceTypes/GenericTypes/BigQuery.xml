@@ -14,13 +14,13 @@
 					<DefaultValue></DefaultValue>
 					<Comments>Path to private key file</Comments>
 				</Property>
-                <Property name="ProjectId" displayName="Datasets Project Id" dataType="string" mandatory="true" readOnly="false" category="">
+                <Property name="ProjectId" displayName="Data Owner Project Id" dataType="string" mandatory="true" readOnly="false" category="">
 					<DefaultValue></DefaultValue>
-					<Comments>BigQuery project id holding the datasets to be discovered or interacted with</Comments>
+					<Comments>BigQuery project id holding the datasets to be written to or read from.</Comments>
 				</Property>
-				<Property name="jobsProjectId" displayName="Query Jobs Project Id" dataType="string" mandatory="false" readOnly="false" category="">
+				<Property name="jobsProjectId" displayName="Data-Accessing Project Id" dataType="string" mandatory="true" readOnly="false" category="">
 					<DefaultValue></DefaultValue>
-					<Comments>BigQuery project id to initiate the query jobs from</Comments>
+					<Comments>BigQuery project id to create the read sessions and query jobs from.</Comments>
 				</Property>
                 <Property name="snapshotViaStorageApi" displayName="Use BigQuery Storage API for Data Snapshots" dataType="boolean" mandatory="true" readOnly="false" category="">
 					<DefaultValue>false</DefaultValue>

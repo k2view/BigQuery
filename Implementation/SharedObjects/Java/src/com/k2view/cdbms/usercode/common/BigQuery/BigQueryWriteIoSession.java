@@ -162,11 +162,12 @@ public class BigQueryWriteIoSession extends BigQuerySession {
 			if (!inTransaction) {
 				throw new IllegalStateException("Must be in transaction!");
 			}
-			TableName parentTable = TableName.of(projectId, (String) input.get(INPUT_DATASET),
-					(String) input.get(INPUT_TABLE));
+			String dataset = (String) input.get(INPUT_DATASET);
+			String table = (String) input.get(INPUT_TABLE);
+			TableName parentTable = TableName.of(datasetsProjectId, dataset, table);
 			if (this.tableSchema == null) {
 				this.tableSchema = client()
-						.getTable(TableId.of((String) input.get(INPUT_DATASET), (String) input.get(INPUT_TABLE)))
+						.getTable(TableId.of(datasetsProjectId, dataset, table))
 						.getDefinition().getSchema();
 			}
 			// When called in the first time, will initialize the BigQuery write stream.
@@ -174,11 +175,12 @@ public class BigQueryWriteIoSession extends BigQuerySession {
 				if (writeStream == null) {
 					String streamType = (String) input.get(INPUT_STREAM_TYPE);
 					if (STREAM_TYPE_PENDING.equals(streamType)) {
-						writeStream = WriteStream.createWriteStream(Type.PENDING, projectId, credentials());
+						writeStream = WriteStream.createWriteStream(Type.PENDING, datasetsProjectId, credentials());
 					} else if (STREAM_TYPE_DEFAULT.equals(streamType)) {
-						writeStream = WriteStream.createWriteStream(projectId, credentials());
+						writeStream = WriteStream.createWriteStream(datasetsProjectId, credentials());
 					} else {
-						writeStream = WriteStream.createWriteStream(Type.UNRECOGNIZED, projectId, credentials());
+						writeStream = WriteStream.createWriteStream(Type.UNRECOGNIZED, datasetsProjectId,
+								credentials());
 					}
 				}
 			}
@@ -227,7 +229,8 @@ public class BigQueryWriteIoSession extends BigQuerySession {
 	@Override
 	@SuppressWarnings("unchecked")
 	public <T> T getMetadata(Map<String, Object> params) throws Exception {
-		return (T) new BigQueryMetadata(interfaceName, null, null, client(), projectId, this.snapshotViaStorageApi,
+		return (T) new BigQueryMetadata(interfaceName, null, null, client(), datasetsProjectId,
+				this.snapshotViaStorageApi,
 				params);
 	}
 }

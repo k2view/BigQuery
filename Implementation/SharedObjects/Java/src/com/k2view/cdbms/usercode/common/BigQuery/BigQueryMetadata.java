@@ -73,7 +73,7 @@ public class BigQueryMetadata implements IoMetadata {
     private Map<String, List<String>> tablesExclude = new HashMap<>();
     private Set<String> schemasInclude = new HashSet<>();
     private Map<String, List<String>> tablesInclude = new HashMap<>();
-    private final String projectId;
+    private final String datasetsProjectId;
     private final String jobUid;
     private final DataPlatformMetaDataInfo dataPlatformMetaDataInfo;
     private int totalFields;
@@ -105,10 +105,10 @@ public class BigQueryMetadata implements IoMetadata {
     }
 
     public BigQueryMetadata(String interfaceName, IoSession commandIoSession, IoSession readSession, BigQuery bqClient,
-            String projectId,
+            String datasetsProjectId,
             boolean snapshotViaStorage, Map<String, Object> props) throws Exception {
         this.interfaceName = interfaceName;
-        this.projectId = projectId;
+        this.datasetsProjectId = datasetsProjectId;
         this.commandSession = commandIoSession;
         this.readSession = readSession;
         this.snapshotViaStorage = snapshotViaStorage;
@@ -195,7 +195,7 @@ public class BigQueryMetadata implements IoMetadata {
     }
 
     private void addSchemaNodes(ConcreteDataPlatform dataPlatform) throws Exception {
-        String query = String.format("SELECT * EXCEPT (schema_owner) FROM %s.INFORMATION_SCHEMA.SCHEMATA", projectId);
+        String query = String.format("SELECT * EXCEPT (schema_owner) FROM %s.INFORMATION_SCHEMA.SCHEMATA", datasetsProjectId);
         List<Object> statementParams = new LinkedList<>();
         Set<String> include = schemasInclude.stream().filter(schema -> !schemasExclude.contains(schema))
                 .collect(Collectors.toSet());
@@ -402,7 +402,7 @@ public class BigQueryMetadata implements IoMetadata {
     private QueryAndParams getTablesQueryAndParams(String schemaName) {
         String query = String.format(
                 "SELECT * FROM %s.%s.INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE!='VIEW'",
-                projectId,
+                datasetsProjectId,
                 schemaName);
         List<Object> params = new LinkedList<>();
         if (tablesInclude.containsKey(schemaName)) {

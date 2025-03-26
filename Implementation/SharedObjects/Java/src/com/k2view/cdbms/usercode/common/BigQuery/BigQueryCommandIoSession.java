@@ -55,7 +55,7 @@ public class BigQueryCommandIoSession extends BigQuerySession {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getMetadata(Map<String, Object> params) throws Exception {
-        return (T) new BigQueryMetadata(interfaceName, this, null, client(), projectId, snapshotViaStorageApi, params);
+        return (T) new BigQueryMetadata(interfaceName, this, null, client(), datasetsProjectId, snapshotViaStorageApi, params);
     }
 
     public class BigQueryCommandStatement implements Statement {
@@ -79,8 +79,7 @@ public class BigQueryCommandIoSession extends BigQuerySession {
             QueryJobConfiguration queryConfig = queryJobBuilder.build();
 
             // Create the query job and wait for it to finish
-            JobId jobId = JobId.newBuilder()
-                    .setProject(!Util.isEmpty(queryJobsProjectId) ? queryJobsProjectId : projectId).build();
+            JobId jobId = JobId.newBuilder().setProject(userProjectId).build();
             Job queryJob = client().create(
                     JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
             queryJob = queryJob.waitFor();

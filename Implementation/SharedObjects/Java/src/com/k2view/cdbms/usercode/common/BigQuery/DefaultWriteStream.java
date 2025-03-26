@@ -27,6 +27,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.BigQueryOptions;
 import com.google.cloud.bigquery.Schema;
 import com.google.cloud.bigquery.Table;
+import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
@@ -48,17 +49,13 @@ AppendContext, DataWriter
 * */
 public class DefaultWriteStream implements WriteStream {
     private final Log log = Log.a(this.getClass());
-    private final String projectId;
-    private final BigQuery bigQuery;
+    private final String datasetsProjectId;
     private final BigQueryWriteClient bigQueryWriteClient;
     private final Map<String, DataWriter> dataWriters = new HashMap<>();
 
-    public DefaultWriteStream(String projectId, Credentials credentials) throws IOException {
-        this.projectId = projectId;
-        log.debug("projectId={}", this.projectId);
-
-        this.bigQuery = BigQueryOptions.newBuilder().setCredentials(credentials).setProjectId(projectId).build()
-                .getService();
+    public DefaultWriteStream(String datasetsProjectId, Credentials credentials) throws IOException {
+        this.datasetsProjectId = datasetsProjectId;
+        log.debug("datasetsProjectId={}", this.datasetsProjectId);
 
         BigQueryWriteSettings bigQueryWriteSettings = BigQueryWriteSettings
                 .newBuilder()
@@ -74,7 +71,7 @@ public class DefaultWriteStream implements WriteStream {
         log.debug("dataset={}", dataset);
         log.debug("table={}", table);
 
-        TableName parentTable = TableName.of(this.projectId, dataset, table);
+        TableName parentTable = TableName.of(this.datasetsProjectId, dataset, table);
         log.debug("parentTable={}", parentTable);
 
         // If we already have a dataWriter for parentTable, we use it, otherwise create
@@ -84,7 +81,7 @@ public class DefaultWriteStream implements WriteStream {
         if (dataWriter == null) {
             log.debug("Instantiating data writer for {}", parentTable);
             dataWriter = new DataWriter();
-            dataWriter.initialize(parentTable, this.bigQuery, this.bigQueryWriteClient);
+            dataWriter.initialize(parentTable, this.bigQueryWriteClient);
             this.dataWriters.put(parentTable.toString(), dataWriter);
         }
         AppendContext appendContext = new AppendContext(rows, 0);
@@ -125,16 +122,8 @@ public class DefaultWriteStream implements WriteStream {
         @GuardedBy("lock")
         private RuntimeException error = null;
 
-        public void initialize(TableName parentTable, BigQuery bigQuery, BigQueryWriteClient bigQueryWriteClient)
+        public void initialize(TableName parentTable, BigQueryWriteClient bigQueryWriteClient)
                 throws DescriptorValidationException, IOException, InterruptedException {
-            Table table = bigQuery.getTable(parentTable.getDataset(), parentTable.getTable());
-            log.debug("table={}", table);
-
-            Schema schema = table.getDefinition().getSchema();
-            if (schema == null) {
-                throw new AssertionError();
-            }
-            log.debug("schema={}", schema);
 
             // Retrieve table schema information.
             // TableSchema tableSchema =

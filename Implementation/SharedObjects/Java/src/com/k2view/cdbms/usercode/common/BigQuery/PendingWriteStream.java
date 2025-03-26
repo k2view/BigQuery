@@ -34,13 +34,12 @@ import com.k2view.fabric.common.Log;
 
 public class PendingWriteStream implements WriteStream {
     private final Log log = Log.a(this.getClass());
-    private final String projectId;
     private final BigQueryWriteClient bigQueryWriteClient;
     private final Map<String, DataWriter> dataWriters = new HashMap<>();
+    private final String datasetsProjectId;
 
-    public PendingWriteStream(String projectId, Credentials credentials) throws IOException {
-        this.projectId = projectId;
-        log.debug("projectId={}", this.projectId);
+    public PendingWriteStream(String datasetsProjectId, Credentials credentials) throws IOException {
+        this.datasetsProjectId = datasetsProjectId;
 
         BigQueryWriteSettings bigQueryWriteSettings = BigQueryWriteSettings
                 .newBuilder()
@@ -56,7 +55,7 @@ public class PendingWriteStream implements WriteStream {
             throws DescriptorValidationException, InterruptedException, IOException {
         log.debug("dataset={}", dataset);
         log.debug("table={}", table);
-        TableName parentTable = TableName.of(this.projectId, dataset, table);
+        TableName parentTable = TableName.of(this.datasetsProjectId, dataset, table);
         log.debug("parentTable={}", parentTable);
 
         // If we already have a dataWriter for parentTable, we use it, otherwise create

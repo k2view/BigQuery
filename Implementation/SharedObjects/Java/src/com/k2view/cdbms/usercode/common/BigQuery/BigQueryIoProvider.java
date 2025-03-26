@@ -14,8 +14,8 @@ import com.k2view.fabric.common.io.IoSession;
 public class BigQueryIoProvider implements IoProvider {
     static final String SESSION_PROP_SNAPSHOT_VIA_STORAGE = "snapshotViaStorageApi";
     static final String SESSION_PROP_CREDENTIALS_FILE = "credentialsFilePath";
-    static final String SESSION_PROP_PROJECT = "project";
-    static final String SESSION_PROP_JOB_PROJECT = "jobProject";
+    static final String SESSION_PROP_DATASETS_PROJECT = "ProjectId";
+    static final String SESSION_PROP_USER_PROJECT = "jobsProjectId";
     static final String SESSION_PROP_INTERFACE = "interface";
     static final String SESSION_PROP_AUTHENTICATION_METHOD = "authenticationMethod";
 
@@ -34,11 +34,11 @@ public class BigQueryIoProvider implements IoProvider {
     public IoSession createSession(String ioProviderFunc, Map<String, Object> map)
             throws FileNotFoundException, IOException {
         String interfaceName = (String) map.get(SESSION_PROP_INTERFACE);
-        String projectId = ParamConvertor.toString(map.get("ProjectId"));
+        String datasetsProjectId = ParamConvertor.toString(map.get(SESSION_PROP_DATASETS_PROJECT));
+        String userProjectId = ParamConvertor.toString(map.get(SESSION_PROP_USER_PROJECT));
         String credentialFilePath = ParamConvertor.toString(map.get("OAuthPvtKeyPath"));
         boolean snapshotViaStorageApi = ParamConvertor.toBool(map.get(SESSION_PROP_SNAPSHOT_VIA_STORAGE));
         String authenticationMethod = ParamConvertor.toString(map.get(SESSION_PROP_AUTHENTICATION_METHOD));
-        String queryJobsProjectId = ParamConvertor.toString(map.get("jobsProjectId"));
         map.putIfAbsent(OPERATION_PARAM_NAME, DEFAULT_OPERATION);
         // Validate that Operation is READ/WRITE/COMMAND
         // Not taking operation as is because of different class loader issue
@@ -46,10 +46,10 @@ public class BigQueryIoProvider implements IoProvider {
         // Open READ/WRITE session based on Operation input, and pass the params
         // extracted from Data property set in the interface
         Map<String, Object> sessionProps = Util.map(SESSION_PROP_AUTHENTICATION_METHOD, authenticationMethod,
-                SESSION_PROP_INTERFACE, interfaceName, SESSION_PROP_PROJECT,
-                projectId, SESSION_PROP_CREDENTIALS_FILE, credentialFilePath, SESSION_PROP_SNAPSHOT_VIA_STORAGE,
-                snapshotViaStorageApi, SESSION_PROP_JOB_PROJECT,
-                queryJobsProjectId);
+                SESSION_PROP_INTERFACE, interfaceName, SESSION_PROP_CREDENTIALS_FILE, credentialFilePath, SESSION_PROP_SNAPSHOT_VIA_STORAGE,
+                snapshotViaStorageApi, SESSION_PROP_DATASETS_PROJECT,
+                datasetsProjectId,
+                SESSION_PROP_USER_PROJECT, userProjectId);
         if (Operation.READ == operation) {
             return new BigQueryReadIoSession(sessionProps);
         } else if (Operation.WRITE == operation) {

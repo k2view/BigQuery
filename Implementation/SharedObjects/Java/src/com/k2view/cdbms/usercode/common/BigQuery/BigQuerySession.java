@@ -22,8 +22,8 @@ class BigQuerySession extends AbstractIoSession {
     private final boolean defaultAuthenticationMethod;
     private final String credentialsFilePath;
     final String interfaceName;
-    final String projectId;
-    final String queryJobsProjectId;
+    final String userProjectId;
+    final String datasetsProjectId;
     final boolean snapshotViaStorageApi;
     
     private volatile BigQuery bqClient; // Ensures visibility across threads
@@ -32,14 +32,14 @@ class BigQuerySession extends AbstractIoSession {
     protected volatile boolean aborted;
 
     BigQuerySession(Map<String, Object> props) {
-        this.projectId = (String) props.get(BigQueryIoProvider.SESSION_PROP_PROJECT);
+        this.userProjectId = (String) props.get(BigQueryIoProvider.SESSION_PROP_USER_PROJECT);
         this.credentialsFilePath = (String) props.get(BigQueryIoProvider.SESSION_PROP_CREDENTIALS_FILE);
         this.interfaceName = (String) props.get(BigQueryIoProvider.SESSION_PROP_INTERFACE);
         this.snapshotViaStorageApi = ParamConvertor
                 .toBool(props.get(BigQueryIoProvider.SESSION_PROP_SNAPSHOT_VIA_STORAGE));
         this.defaultAuthenticationMethod = DEFAULT_AUTH_METHOD
                 .equalsIgnoreCase((String) props.get(BigQueryIoProvider.SESSION_PROP_AUTHENTICATION_METHOD));
-        this.queryJobsProjectId = (String) props.get(BigQueryIoProvider.SESSION_PROP_JOB_PROJECT);
+        this.datasetsProjectId = (String) props.get(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
     }
 
     BigQuery client() throws Exception {
@@ -48,7 +48,7 @@ class BigQuerySession extends AbstractIoSession {
                 if (bqClient == null) { // Second check (within lock)
                     bqClient = BigQueryOptions.newBuilder()
                             .setCredentials(credentials())
-                            .setProjectId(projectId)
+                            .setProjectId(userProjectId)
                             .build()
                             .getService();
                 }

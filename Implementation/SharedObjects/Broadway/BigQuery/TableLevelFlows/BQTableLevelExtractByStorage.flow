@@ -104,6 +104,21 @@ stages:
         out:
           value:
             schema: '#ref'
+  Get Data Owner Project id:
+    actors:
+      DataOwnerProjectId:
+        parent: LuFunction
+        height: 355
+        in:
+          functionName:
+            const: bqGetDatasetsProject
+          interfaceName:
+            link: Source Interface/value
+            schema: any
+            mandatory: false
+        out:
+          result:
+            schema: any
   Get Table Schema:
     actors:
       FetchColumnsTypes:
@@ -118,15 +133,18 @@ stages:
                 column_name,
                 data_type
               FROM
-                `${@dataset}.INFORMATION_SCHEMA.COLUMNS`
+                `${@project}.${@dataset}.INFORMATION_SCHEMA.COLUMNS`
               WHERE table_name = ${table}
-          dataset:
-            link: Source Schema/value
-            schema: string
-            mandatory: false
           table:
             link: Source Table Name/value
             schema: string
+            mandatory: false
+          project:
+            link: DataOwnerProjectId/result
+            schema: any
+            mandatory: false
+          dataset:
+            schema: any
             mandatory: false
         out:
           result:
@@ -149,6 +167,31 @@ stages:
         out:
           parsedParamsValues:
             schema: '#ref'
+  Build Count Statement:
+    actors:
+      BuildCountStatement:
+        parent: StringFormat
+        height: 551
+        in:
+          format:
+            const: select count(*) from `${@project}.${@dataset}.${@table}` where
+              ${@where}
+          project:
+            link: DataOwnerProjectId/result
+            schema: any
+            mandatory: false
+          dataset:
+            link: Source Schema/value
+            schema: any
+            mandatory: false
+          table:
+            link: Source Table Name/value
+            schema: any
+            mandatory: false
+          where:
+            link: Where Claוse/value
+            schema: any
+            mandatory: false
   Assign values to params:
     actors:
       ReplacePlaceholders:
@@ -226,7 +269,7 @@ stages:
             external: sourceInterface
           sql:
             const: null
-            external: countStatement
+            link: BuildCountStatement/string
           params:
             link: ParseParamsValues/parsedParamsValues
         out:
