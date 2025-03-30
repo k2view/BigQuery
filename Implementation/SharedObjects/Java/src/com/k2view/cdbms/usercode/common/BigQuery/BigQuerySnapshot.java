@@ -21,13 +21,15 @@ public class BigQuerySnapshot implements SnapshotDataset {
     private IoCommand.Statement readStatement;
     private IoCommand.Result readResult;
     private final boolean useStorageApi;
+    private final String datasetsProjectId;
 
     public BigQuerySnapshot(IoSession commandSession, IoSession readSession, String table, String schema,
-            SampleSize size, boolean useStorageApi) {
+            String datasetsProjectId, SampleSize size, boolean useStorageApi) {
         this.commandSession = commandSession;
         this.readSession = readSession;
         this.table = table;
         this.schema = schema;
+        this.datasetsProjectId = datasetsProjectId;
         this.size = size;
         this.useStorageApi = useStorageApi;
     }
@@ -51,7 +53,7 @@ public class BigQuerySnapshot implements SnapshotDataset {
                 this.readResult = readStatement.execute(executeParams);
             } else {
                 this.readStatement = commandSession
-                        .prepareStatement(String.format("select * from `%s.%s` limit ?", schema, table));
+                        .prepareStatement(String.format("select * from `%s.%s.%s` limit ?", datasetsProjectId, schema, table));
                 this.readResult = readStatement.execute(limit);
             }
             Iterator<IoCommand.Row> iterator = readResult.iterator();
@@ -88,7 +90,7 @@ public class BigQuerySnapshot implements SnapshotDataset {
     private long getNumberOfRows() throws Exception {
         try (
                 IoCommand.Statement statement = commandSession.prepareStatement(
-                        String.format("SELECT row_count FROM %s.__TABLES__ WHERE table_id = ?", schema));
+                        String.format("SELECT row_count FROM %s.%s.__TABLES__ WHERE table_id = ?", datasetsProjectId, schema));
                 IoCommand.Result result = statement.execute(table)) {
             return (Long) result.firstValue();
         }

@@ -15,6 +15,7 @@ import com.google.cloud.bigquery.BigQuery;
 import com.google.cloud.bigquery.Field;
 import com.google.cloud.bigquery.FieldList;
 import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.google.cloud.bigquery.TableId;
 import com.k2view.broadway.metadata.Any;
 import com.k2view.broadway.metadata.ArrayType;
 import com.k2view.broadway.metadata.ObjectType;
@@ -279,7 +280,7 @@ public class BigQueryMetadata implements IoMetadata {
         for (IoCommand.Row row : tables) {
             assertAborted();
             String tableName = row.get(TABLE_NAME).toString();
-            FieldList fields = bqClient.getTable(schemaNode.getName(), tableName).getDefinition().getSchema()
+            FieldList fields = bqClient.getTable(TableId.of(datasetsProjectId, schemaNode.getName(), tableName)).getDefinition().getSchema()
                     .getFields();
             tableFields.put(tableName, fields);
             // MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid,
@@ -611,7 +612,7 @@ public class BigQueryMetadata implements IoMetadata {
 
     @Override
     public BigQuerySnapshot snapshotDataset(String dataset, String schema, SampleSize size, Map<String, Object> map) {
-        return new BigQuerySnapshot(commandSession, readSession, dataset, schema, size, snapshotViaStorage);
+        return new BigQuerySnapshot(commandSession, readSession, dataset, schema, datasetsProjectId, size, snapshotViaStorage);
     }
 
     @Override

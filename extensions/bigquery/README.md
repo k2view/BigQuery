@@ -50,6 +50,10 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.3.5
+- Incorrect project id when fetching table schema during discovery.
+- Added project id to snapshot query.
+
 ### v1.3.4
 - Fix table-level flows
 
