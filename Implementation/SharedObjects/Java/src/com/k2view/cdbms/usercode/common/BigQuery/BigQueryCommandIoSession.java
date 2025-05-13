@@ -55,7 +55,8 @@ public class BigQueryCommandIoSession extends BigQuerySession {
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getMetadata(Map<String, Object> params) throws Exception {
-        return (T) new BigQueryMetadata(interfaceName, this, null, client(), datasetsProjectId, snapshotViaStorageApi, params);
+        return (T) new BigQueryMetadata(interfaceName, this, null, client(), datasetsProjectId, snapshotViaStorageApi,
+                params);
     }
 
     public class BigQueryCommandStatement implements Statement {
@@ -63,8 +64,31 @@ public class BigQueryCommandIoSession extends BigQuerySession {
         private final Builder queryJobBuilder;
 
         public BigQueryCommandStatement(String command) {
-            this.command = command;
-            this.queryJobBuilder = QueryJobConfiguration.newBuilder(command);
+            this.command = replaceProjectId(command, datasetsProjectId);
+            this.queryJobBuilder = QueryJobConfiguration.newBuilder(this.command);
+        }
+
+        private static String replaceProjectId(String sql, String projectId) {
+            StringBuilder result = new StringBuilder();
+            boolean inString = false;
+            int length = sql.length();
+
+            for (int i = 0; i < length;) {
+                char c = sql.charAt(i);
+
+                if (!inString && sql.startsWith("$projectId.", i)) {
+                    result.append(projectId).append(".");
+                    i += "$projectId.".length();
+                } else {
+                    if (c == '\'') {
+                        inString = !inString;
+                    } 
+                    result.append(c);
+                    i++;
+                }
+            }
+
+            return result.toString();
         }
 
         @Override

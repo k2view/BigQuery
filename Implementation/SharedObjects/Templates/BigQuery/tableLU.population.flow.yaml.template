@@ -19,7 +19,7 @@ stages:
             external: table
   Parent Rows Mapper:
     actors:
-      ParentRowsMapper:
+      BqParentRowsMapper:
         parent: LuFunction
         in:
           functionName:
@@ -53,7 +53,7 @@ stages:
           interface:
             const: {{#if sourceInterface}}{{sourceInterface}}{{else}}null{{/if}}
           sql:
-            const: {{#if sourceQuery}}{{{sourceQuery}}}{{else}}null{{/if}}{{#if streamSyncEnabled}}
+            const: {{#if sourceTable}}select * from `$projectId.{{{sourceSchema}}}.{{{sourceTable}}}`{{else}}null{{/if}}{{#if streamSyncEnabled}}
           stream_sync_enabled:
             const: {{streamSyncEnabled}}{{/if}}
           parent_rows:
@@ -64,7 +64,7 @@ stages:
   LU Table:
     last: 1
     actors:
-      {{luTable}}:
+      {{{luTable}}}:
         parent: DbLoad
         in:
           interface:

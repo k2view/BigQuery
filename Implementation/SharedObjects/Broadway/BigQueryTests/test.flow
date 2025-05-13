@@ -8,8 +8,7 @@ stages:
           interface:
             const: BigQuery
           sql:
-            const: select * from babynames.names_2014 where (assigned_sex_at_birth
-              = 'M' AND count > '0');
+            const: select * from $projectId.babynames.names_2014 where count = 1
         out:
           result:
             schema: '#ref'

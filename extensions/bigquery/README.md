@@ -22,9 +22,13 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 3. In the interface settings, set the desired credentials method:
    - [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
    - [Service Account Key File](https://developers.google.com/workspace/guides/create-credentials#create_credentials_for_a_service_account) - specify the path to the credentials JSON file under `OAuth Private Key Path`.
-4. Set the `Data Owner Project Id ` to the project in which the datasets and tables exist.
-5. Set the `Data-Accessing Project Id` - The project from which the query jobs and Storage API read sessions will be created when reading data from BigQuery.
-   >Please note that LU populations are not currently supported, you need to manually prepend the `Data Owner Project Id` to the query - select * from {`Data Owner Project Id`}.dataset.table)
+4. Set the `Data-Accessing Project Id` — the project from which the query jobs and Storage API read sessions will be initiated when accessing data in BigQuery.
+5. Set the `Data Owner Project Id` to the project in which the datasets and tables exist.  
+   > **Important:** You must use the placeholder __$projectId__ in your query so that it is dynamically replaced at runtime with the value of this property.  
+   > For example:  
+   > *_SELECT * FROM \`$projectId.dataset.table\`_*
+   >  
+   > If you instead write _SELECT * FROM \`dataset.table\`_, the query will target the project `Data-Accessing Project Id`.
 6. (Optional) Check the flag `Use BigQuery Storage API for Data Snapshots` if you wish to use the Storage API for data snapshotting done by the discovery crawler job.
 7. Redeploy the project and environments.
 8. (Optional - for TDM Table Level) - The connector provides also the flows `BQTableLevelDelete` (uses DbCommand), `BQTableLevelExtractByQuery` (uses DbCommand), `BQTableLevelExtractByStorage` (uses BigQueryRead actor), `BQTableLevelLoadByStorage` (uses BigQueryWrite actor).
@@ -45,10 +49,15 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
    - Not optimized for high-throughput reads/writes compared to the Storage API.
    - The batch option in DbCommand is not supported.
 4. TDM table-level: Data retention is not supported when the source table contains a complex field (array/struct/range), so the option "Do not retain" must be selected in that case.
-5. LU Table Populations - need to manually prepend the `Data Owner Project Id` to the populations queries, i.e. select * from {`Data Owner Project Id`}.dataset.table). You can use the LuFunction actor with the function bqGetDatasetsProject to dynamically fetch the project id. 
+
 ---
 
 ## Change Log
+
+### v1.3.6
+- Added the ability to use the _$projectId_ placeholder in `DbCommand`, which is dynamically replaced by the `Data Owner Project Id`.
+- Added support for LU table populations.
+- Fixed issue with actor name in LU table population due to recent change in Fabric Studio 8.2 that wraps the LU table names with ''.
 
 ### v1.3.5
 - Incorrect project id when fetching table schema during discovery.

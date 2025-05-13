@@ -104,21 +104,6 @@ stages:
         out:
           value:
             schema: '#ref'
-  Get Data Owner Project id:
-    actors:
-      DataOwnerProjectId:
-        parent: LuFunction
-        height: 355
-        in:
-          functionName:
-            const: bqGetDatasetsProject
-          interfaceName:
-            link: Source Interface/value
-            schema: any
-            mandatory: false
-        out:
-          result:
-            schema: any
   Get Table Schema:
     actors:
       FetchColumnsTypes:
@@ -133,15 +118,11 @@ stages:
                 column_name,
                 data_type
               FROM
-                `${@project}.${@dataset}.INFORMATION_SCHEMA.COLUMNS`
+                `$projectId.${@dataset}.INFORMATION_SCHEMA.COLUMNS`
               WHERE table_name = ${table}
           table:
             link: Source Table Name/value
             schema: string
-            mandatory: false
-          project:
-            link: DataOwnerProjectId/result
-            schema: any
             mandatory: false
           dataset:
             link: Source Schema/value
@@ -176,15 +157,11 @@ stages:
         in:
           script:
             const: |-
-              var statement = "select count(*) from `" + project + "." + dataset + "." + table + "`";
+              var statement = "select count(*) from `$projectId." + dataset + "." + table + "`";
               if (where) {
                   statement = statement + " where " + where;
               }
               statement;
-          project:
-            link: DataOwnerProjectId/result
-            schema: any
-            mandatory: false
           dataset:
             link: Source Schema/value
             schema: any
