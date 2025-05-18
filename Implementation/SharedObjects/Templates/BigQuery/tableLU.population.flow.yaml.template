@@ -57,7 +57,7 @@ stages:
           stream_sync_enabled:
             const: {{streamSyncEnabled}}{{/if}}
           parent_rows:
-            link: ParentRowsMapper/result{{#if sourceQueryOutputs}}
+            link: BqParentRowsMapper/result{{#if sourceQueryOutputs}}
         out:
           result:
             schema: '#ref'{{/if}}
