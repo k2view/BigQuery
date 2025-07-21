@@ -55,6 +55,7 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ## Change Log
 
 ### v1.3.6
+- Fixed affectedRows for DML statements using DbCommand.
 - Added the ability to use the _$projectId_ placeholder in `DbCommand`, which is dynamically replaced by the `Data Owner Project Id`.
 - Added support for LU table populations.
 - Fixed issue with actor name in LU table population due to recent change in Fabric Studio 8.2 that wraps the LU table names with ''.

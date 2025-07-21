@@ -18,11 +18,14 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
+import com.google.cloud.bigquery.JobStatistics;
+import com.google.cloud.bigquery.JobStatistics.QueryStatistics;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.QueryJobConfiguration.Builder;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.TableResult;
 import com.k2view.fabric.common.Log;
+import com.k2view.fabric.common.ParamConvertor;
 import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.basic.IoSimpleRow;
 
@@ -106,7 +109,12 @@ public class BigQueryCommandIoSession extends BigQuerySession {
             JobId jobId = JobId.newBuilder().setProject(userProjectId).build();
             Job queryJob = client().create(
                     JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+            long numDmlAffectedRows = -1;
             queryJob = queryJob.waitFor();
+
+            if (queryJob.getStatistics() instanceof QueryStatistics qs && qs.getNumDmlAffectedRows() != null) {
+                numDmlAffectedRows = qs.getNumDmlAffectedRows();
+            }
 
             BigQueryError error = queryJob.getStatus().getError();
             if (queryJob.isDone() && error == null) {
@@ -115,7 +123,7 @@ public class BigQueryCommandIoSession extends BigQuerySession {
                 // Save the query results
                 TableResult queryResults = queryJob.getQueryResults();
                 // Return the result
-                return new BigQueryCommandResult(queryResults);
+                return new BigQueryCommandResult(queryResults, numDmlAffectedRows);
             } else {
                 throw new RuntimeException(
                         error != null ? error.getMessage() : String.format("Failed to execute sql='%s'", command));
@@ -126,11 +134,13 @@ public class BigQueryCommandIoSession extends BigQuerySession {
             private final Iterator<FieldValueList> iterator;
             private final TableResult queryResult;
             private final FieldList schemaFields;
+            private final long numDmlAffectedRows;
 
-            public BigQueryCommandResult(TableResult queryResult) {
+            public BigQueryCommandResult(TableResult queryResult, long numDmlAffectedRows) {
                 this.queryResult = queryResult;
                 this.iterator = queryResult.iterateAll().iterator();
                 this.schemaFields = queryResult.getSchema() != null ? queryResult.getSchema().getFields() : null;
+                this.numDmlAffectedRows = numDmlAffectedRows;
             }
 
             @Override
@@ -185,7 +195,7 @@ public class BigQueryCommandIoSession extends BigQuerySession {
 
             @Override
             public int rowsAffected() {
-                return -1; // Not applicable for queries
+                return (int) numDmlAffectedRows;
             }
         }
 

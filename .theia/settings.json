@@ -32,8 +32,9 @@
     "java.project.outputPath": ".studioWeb/java/bin",
     "java.project.sourcePaths": [
 		"Implementation/SharedObjects/Java/src",	
-		"Implementation/LogicalUnits/k2_ws/Java/src",	
-		"Implementation/LogicalUnits/k2_ref/Java/src"	
+		"Implementation/LogicalUnits/TestLU/Java/src",	
+		"Implementation/LogicalUnits/k2_ref/Java/src",	
+		"Implementation/LogicalUnits/k2_ws/Java/src"	
 	],
 	"java.project.resourceFilters": [
         "node_modules",
@@ -77,7 +78,7 @@
 		"**/Parsers": true,
 		"**/Jobs": true,
 		"**/IidFinder": true,
-		"**/Templates": true,
+		"**/Templates": false,
 		"**/Environments": false,
 		"ItemsProperties.k2projItems.xml": true,
 		"*.k2proj": false
