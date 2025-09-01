@@ -29,6 +29,7 @@ import com.k2view.discovery.rules.CrawlerRules;
 import com.k2view.discovery.rules.DataPlatformMetaDataInfo;
 import com.k2view.discovery.schema.io.CrawlerAbortedException;
 import com.k2view.discovery.schema.io.IoMetadata;
+import com.k2view.discovery.schema.io.SnapshotDataset;
 import com.k2view.discovery.schema.model.Category;
 import com.k2view.discovery.schema.model.DataPlatform;
 import com.k2view.discovery.schema.model.impl.ConcreteClassNode;
@@ -623,5 +624,11 @@ public class BigQueryMetadata implements IoMetadata {
         if (this.selfCreatedReadSession) {
             Util.safeClose(this.readSession);
         }
+    }
+
+    // @Override in 8.3
+    public SnapshotDataset snapshotDataset(String arg0, String arg1, String arg2, SampleSize arg3,
+            Map<String, Object> arg4) throws Exception {
+        throw new UnsupportedOperationException("Unimplemented method 'snapshotDataset'");
     }
 }

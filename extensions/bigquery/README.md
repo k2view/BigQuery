@@ -1,9 +1,7 @@
 # BigQuery Connector
 
->
-> This version is compatible with **Fabric 8.2**.  
-> TDM table-level flows are compatible with **TDM 9.3**.  
-> If you are using **Fabric 8.1**, please install v1.1.x.
+> This version is compatible with Fabric 8.2 or higher. If you are using Fabric 8.1, please install v1.1.x.
+> TDM table-level flows are compatible with TDM 9.3.  
 
 ## Overview
 The BigQuery Connector provides integration with Google's BigQuery platform through the following two Broadway actors:
@@ -45,7 +43,7 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ## Limitations
 1. Updating existing records in is not supported.
 2. BigQueryWrite actor must always be placed in a transaction stage.
-3. DbCommand: 
+3. DbCommand:
    - Not optimized for high-throughput reads/writes compared to the Storage API.
    - The batch option in DbCommand is not supported.
 4. TDM table-level: Data retention is not supported when the source table contains a complex field (array/struct/range), so the option "Do not retain" must be selected in that case.
@@ -53,6 +51,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ---
 
 ## Change Log
+
+### v1.3.7
+- Fix compilation error in BigQueryMetadata.
 
 ### v1.3.6
 - Fixed affectedRows for DML statements using DbCommand.
