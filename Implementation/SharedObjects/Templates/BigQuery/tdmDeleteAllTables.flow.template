@@ -1,0 +1,49 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Pre Delete Table",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": []
+                }
+            ]
+        },{{#each Tables~}}
+		{
+            "stages": [
+                {
+                    "name": "Delete Tables Level {{indexPlus @index}}",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [{{~#each this}}
+                        {
+                            "name": "delete_{{this}}",
+                            "actorType": {
+                                "parentType": "InnerFlow",
+                                "inputs": [
+                                    {
+                                        "name": "flowName",
+                                        "const": "delete_{{this}}"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }{{#if @last}}{{^}},{{/if}}{{~/each}}
+                    ]
+                }
+            ]
+        },{{/each}}
+        {
+            "stages": [
+                {
+                    "name": "Post Delete Table",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": []
+                }
+            ]
+        }
+    ],
+    "connections": []
+}

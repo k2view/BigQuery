@@ -1,0 +1,92 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Pre Load Table",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": []
+                }
+            ]
+        },{{#each Tables}}
+		{
+            "stages": [
+                {
+                    "name": "Load Tables Level {{indexPlus @index}}",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+						{{#if @index}}
+						{
+                            "name": "Check if Entity has not failed {{@index}}",
+                            "condition": "result",
+                            "actorType": {
+                                "parentType": "NotEquals",
+                                "inputs": [
+                                    {
+                                        "name": "b",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "failed"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+						},{{/if}}{{~#each this}}
+                        {
+                            "name": "load_{{this}}",
+                            "actorType": {
+                                "parentType": "InnerFlow",
+                                "inputs": [
+                                    {
+                                        "name": "flowName",
+                                        "const": "load_{{this}}"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },{{~/each}}
+                        {
+                            "name": "Get Entity Status {{indexPlus @index}}",
+                            "actorType": {
+                                "parentType": "FabricSetRead",
+                                "inputs": [
+                                    {
+                                        "name": "key",
+                                        "const": "ENTITY_STATUS",
+                                        "isDefault": false
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        },{{/each}}
+        {
+            "stages": [
+                {
+                    "name": "Post Load Table",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": []
+                }
+            ]
+        }
+    ],
+    "connections": [{{#each Tables}}{{#if @index}}
+		{
+            "leftPort": {
+                "actor": "Get Entity Status {{@index}}",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Check if Entity has not failed {{@index}}",
+                "name": "a"
+            }
+        }{{#neq @index Size}},{{/neq}}{{/if}}{{/each}}
+	]
+}

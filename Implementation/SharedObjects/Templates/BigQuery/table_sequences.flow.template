@@ -1,0 +1,93 @@
+tags: SequencesFlows
+stages:
+  Input:
+    actors:
+      Record:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: row
+            schema: object
+        out:
+          value:
+            schema: '#ref'
+  New Sequence:
+    actors:
+      Transformation Error Handler:
+        parent: ErrorHandler
+        error: result
+        in:
+          config:
+            const:
+            - exceptionKey: java.lang.Exception
+              conditions:
+                message: ''
+              actions:
+                suppress: false
+                log: false
+                flowName: PopulateTableErrorsWithFailed
+      {{#each TABLE_SEQ_DATA~}}Get Sequence for {{getFieldName this}}:
+        parent: {{getSequenceActorName this}}
+        in:
+          tableName:
+            const: {{{TARGET_TABLE}}}
+          columName:
+            const: {{getFieldName this}}
+          OriginalSeqValue:
+            link: Record/value/{{getSourceFieldName this}}
+      {{/each}}
+  Build Maps:
+    actors:
+      Maps Of Masked Fields:
+        parent: MapCreate
+        height: 170
+        in:
+          {{#each TABLE_SEQ_DATA~}}
+          {{getFieldName this}}:
+            link: Get Sequence for {{getFieldName this}}/NewSeqValue
+            schema: string
+            mandatory: false
+          {{/each}}
+        out:
+          map:
+            schema: '#ref'
+  Build Record:
+    actors:
+      Final Record:
+        parent: MapMerge
+        in:
+          maps:
+            link:
+            - path: Record/value
+              pos: 0
+            - path: Maps Of Masked Fields/map
+              pos: 1
+        out:
+          map:
+            external: result
+            schema: '#ref'
+schemas:
+  Record.out.value:
+    type: object
+    properties:
+    {{#each LU_TABLE_COLUMNS}}
+      {{this}}:
+        type: Any
+    {{/each}}
+
+  Maps Of Masked Fields.out.map:
+    type: object
+    properties:
+    {{#each TABLE_SEQ_DATA~}}
+      {{getFieldName this}}:
+        type: Any
+    {{/each}}
+      
+  Final Record.out.map:
+    type: object
+    properties:
+    {{#each TARGET_TABLE_COLUMNS}}
+      {{this}}:
+        type: Any
+    {{/each}}

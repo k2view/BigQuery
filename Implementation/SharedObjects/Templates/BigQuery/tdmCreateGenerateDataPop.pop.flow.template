@@ -1,0 +1,276 @@
+tags: Generate Data,GeneratorFlows
+stages:
+  Get The Parent Record & Eable Masking:
+    actors:
+      Get TDMDB Schema:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: getTDMDBSchema
+        out:
+          schema:
+            schema: string
+      parent_row:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: parent_row
+        out:
+          value:
+            schema: '#ref'
+
+      Get SEQ_CACHE_INTERFACE:
+        parent: FabricSetRead
+        in:
+          key:
+            const: SEQ_CACHE_INTERFACE
+            default: false
+      Set Masking Flag To True:
+        parent: FabricSet
+        in:
+          key:
+            const: enable_masking
+            default: false
+          value:
+            const: 'true'
+            default: false
+  Set Parent & Sequential Fields:
+    actors:
+      {{#if TABLE_PARENT_FIELDS}}
+      {{#each TABLE_PARENT_FIELDS~}}
+      {{getChildFieldName this}}:
+        parent: Const
+        in:
+          value:
+            const: null
+            link: parent_row/value/{{getParentFieldName this}}
+      {{/each}}
+      {{/if}}
+      {{#if TABLE_SEQ_DATA}}
+      {{#each TABLE_SEQ_DATA~}}
+      {{getFabricFieldName this}}:
+        parent: Masking
+        in:
+          maskingId:
+            const: {{getFabricFieldName this}}
+          flowName:
+            const: Sequence.actor
+          category:
+            const: enable_sequences
+          useEnvironment:
+            const: true
+          useExecutionId:
+            const: true
+          interface:
+            schema: string
+          TTL:
+            const: 0
+          onEmpty:
+            const: MASK_NO_CACHE
+          value:
+            schema:
+              const: null
+          sequenceId:
+            const: {{getSequenceName this}}
+            schema: string
+            mandatory: false
+          sequenceInterface:
+            const: TDM
+            schema: string
+            mandatory: false
+          initialValue:
+            const: '1'
+            schema: string
+            mandatory: false
+          increment:
+            const: 1
+            schema: number
+            mandatory: false
+          sequenceSchema:
+            schema: string
+        out:
+          value:
+            schema: string
+      {{/each}}
+      {{/if}}
+  Build Parent & Sequential Fields Maps:
+    actors:
+      {{#if TABLE_PARENT_FIELDS}}
+      {{#each TABLE_PARENT_FIELDS~}}
+      Build {{getChildFieldName this}} Map:
+        parent: MapBuild
+        in:
+          key:
+            const: {{getChildFieldName this}}
+            schema: string
+          value:
+            link: {{getChildFieldName this}}/value
+        out:
+          map:
+            schema: '#ref'
+      {{/each}}
+      {{/if}}
+      {{#if TABLE_SEQ_DATA}}
+      {{#each TABLE_SEQ_DATA~}}
+      Build {{getFabricFieldName this}} Map:
+        parent: MapBuild
+        in:
+          key:
+            const: {{getFieldName this}}
+            schema: string
+          value:
+            link: {{getFabricFieldName this}}/value
+        out:
+          map:
+            schema: '#ref'
+      {{/each}}
+      {{/if}}
+  Merge Maps & Call Catalog Generator:
+    actors:
+      {{#or TABLE_PARENT_FIELDS TABLE_SEQ_DATA}}
+      Merge Parent & Sequential Felds Maps:
+        parent: MapMerge
+        in:
+          maps:
+            link:
+              {{#if TABLE_PARENT_FIELDS}}
+              {{#each TABLE_PARENT_FIELDS~}}
+              - path: Build {{getChildFieldName this}} Map/map
+                pos: {{@index}}
+              {{/each}}
+              {{/if}}
+              {{#if TABLE_SEQ_DATA}}
+              {{#each TABLE_SEQ_DATA~}}
+              - path: Build {{getFabricFieldName this}} Map/map
+                pos: {{indexPlusLength @index TABLE_PARENT_FIELDS.length}}
+              {{/each}}
+              {{/if}}
+      {{/or}}
+      Catalog Generator Record:
+        parent: CatalogGeneratorRecord
+        in:
+          interface:
+            const: null
+            link: Get SEQ_CACHE_INTERFACE/result
+          dataPlatform:
+            const: {{SOURCE_INTERFACE}}
+          schema:
+            const: {{{SOURCE_SCHEMA}}}
+          {{#eq DOCUMENT_IND "true"}}
+          dataset:
+            const: {{getMainTableName this}}
+          catalogClassName:
+            const: {{getTableClass this}}
+            schema: string
+          {{else}}
+          dataset:
+            const: {{{SOURCE_TABLE}}}
+          {{/eq}}
+          mtable:
+            schema: any
+          donNotNormalizeGeneratedValue:
+            const: true
+            schema: boolean
+  If Catalog Returns Nothing:
+    dependsOn: Merge Maps & Call Catalog Generator
+    actors:
+      Empty Data From Catalog:
+        parent: Equals
+        condition: result
+        in:
+          a:
+            link: Catalog Generator Record/value
+          b:
+            const: {
+              }
+            schema: object
+      Generate Default Values:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: '{{{SOURCE_TABLE}}}.typeDefaultsGenerator'
+        out:
+          value:
+            schema: any
+    split: '--------------------'
+  Catalog Returned Data:
+    else: true
+    dependsOn: Merge Maps & Call Catalog Generator
+    actors:
+      Catalog Generated Data:
+        parent: Const
+        in:
+          value:
+            const: null
+            link: Catalog Generator Record/value
+            schema: object
+        out:
+          value:
+            schema: object
+  Prepare Generated Data:
+    transactional: false
+    actors:
+      Generated Value For Rest Of Fields:
+        parent: Const
+        in:
+          value:
+            const: null
+            link:
+            - Generate Default Values/value
+            - Catalog Generated Data/value
+            schema: object
+  Merge All Fields:
+    transactional: false
+    actors:
+      Set Masking Flag To False:
+        parent: FabricSet
+        in:
+          key:
+            const: enable_masking
+            default: false
+          value:
+            const: 'false'
+            default: false
+      Merge Maps of all Fields:
+        parent: MapMerge
+        in:
+          mapType:
+            const: TreeMapIgnoreCase
+          maps:
+            link:
+            - path: Generated Value For Rest Of Fields/value
+              pos: 0
+            - path: Merge Parent & Sequential Felds Maps/map
+              pos: 1
+        out:
+          map:
+            external: result
+schemas:
+  parent_row.out.value:
+    type: object
+    properties:
+      {{#if TABLE_PARENT_FIELDS}}
+      {{#each TABLE_PARENT_FIELDS~}}
+      {{getParentFieldName this}}:
+        type: any
+      {{/each}}
+      {{/if}}
+  {{#if TABLE_PARENT_FIELDS}}
+  {{#each TABLE_PARENT_FIELDS~}}
+  Build {{getChildFieldName this}} Map.out.map:
+    type: object
+    properties:
+      {{getChildFieldName this}}:
+        type: string
+  {{/each}}
+  {{/if}}
+  {{#if TABLE_SEQ_DATA}}
+  {{#each TABLE_SEQ_DATA~}}
+  Build {{getFabricFieldName this}} Map.out.map:
+    type: object
+    properties:
+      {{getFieldName this}}:
+        type: string
+  {{/each}}
+  {{/if}}

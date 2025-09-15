@@ -2,6 +2,7 @@
 
 > This version is compatible with Fabric 8.2 or higher. If you are using Fabric 8.1, please install v1.1.x.
 > TDM table-level flows are compatible with TDM 9.3.  
+> TDM templates are compatible with TDM 9.4.
 
 ## Overview
 The BigQuery Connector provides integration with Google's BigQuery platform through the following two Broadway actors:
@@ -51,6 +52,10 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ---
 
 ## Change Log
+
+### v1.4.0
+- Add TDM templates.
+- Handle empty parent rows in LU table population
 
 ### v1.3.7
 - Fix compilation error in BigQueryMetadata.

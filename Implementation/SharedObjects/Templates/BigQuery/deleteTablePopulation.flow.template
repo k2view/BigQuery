@@ -3,12 +3,13 @@ stages:
     actors:
       PopulationArgs:
         parent: PopulationArgs
-        readonly: true{{#if inputArgs}}
-        in:{{#each inputArgs}}
-          {{{this}}}:
-            external: {{{this}}}
+        readonly: true
+        in:
+          {{#each PARENT_TABLE_DATA~}}
+          {{getInputFieldName this}}:
+            external: {{getInputFieldName this}}
             schema: any
-            mandatory: false{{/each}}{{/if}}
+          {{/each}}
       SyncDeleteMode:
         parent: SyncDeleteMode
         in:
@@ -34,43 +35,36 @@ stages:
             mandatory: false
           parentRows:
             link: PopulationArgs/parent_rows
-            schema:
-              type: array
-              items:
-                type: object
+            schema: '#ref'
             mandatory: false
         out:
           result:
-            schema:
-              type: array
-              items:
-                type: object
+            schema: '#ref'
   Source:
     actors:
       Query:
         parent: SourceDbQuery
         in:
           interface:
-            const: {{#if sourceInterface}}{{sourceInterface}}{{else}}null{{/if}}
+            const: {{TARGET_INTERFACE}}
           sql:
-            const: {{#if sourceTable}}select * from `$projectId.{{{sourceSchema}}}.{{{sourceTable}}}`{{else}}null{{/if}}{{#if streamSyncEnabled}}
-          stream_sync_enabled:
-            const: {{streamSyncEnabled}}{{/if}}
+            const: |-
+              Select {{#each Columns~}} {{getDeleleColumnName this}}{{#if @last}}{{else}}  ,  {{/if}}{{/each}}
+              From `$projectId.{{{TARGET_SCHEMA}}}.{{{OriginalTableName}}}`
           parent_rows:
-            link: BqParentRowsMapper/result{{#if sourceQueryOutputs}}
+            link: BqParentRowsMapper/result
         out:
           result:
-            schema: '#ref'{{/if}}
+            schema: '#ref'
+  Stage 1: {}
   LU Table:
     last: 1
     actors:
-      {{{luTable}}}:
+      {{{TableName}}}:
         parent: DbLoad
         in:
           interface:
-            const: fabric{{#if upsert}}
-          command:
-            const: upsert{{/if}}
+            const: fabric
           schema:
             const: null
             external: schema
@@ -79,33 +73,29 @@ stages:
             external: table
           fields:
             const:
-            {{#each luTableColumns}}
-            - {{{this}}}
-            {{/each}}
-          keys:
-            const:
-            {{#each luTableKeys}}
-            - {{{this}}}
+            {{#each Columns~}}
+            - {{getDeleleColumnName this}}
             {{/each}}
           dialect:
             const: sqlite
-          {{#each luTableColumns}}
-          {{{this}}}:
+          {{#each Columns~}}
+          {{getDeleleColumnName this}}:
             schema: any
           {{/each}}
           params:
             link:
               path: Query/result
               iterate: Iterate
-  Post Load: {
-    }
-{{#if sourceQueryOutputs}}schemas:    
+  Post Load: {}
+schemas:
+  BqParentRowsMapper.in.parentRows:
+    type: array
+    items:
+      type: object
+  BqParentRowsMapper.out.result:
+    type: array
+    items:
+      type: object
   Query.out.result:
     type: object
-    properties:
-      {{#each sourceQueryOutputs}}
-      {{{this}}}:
-        type: {
-          }
-      {{/each}}
-{{/if}}
+    properties: {}

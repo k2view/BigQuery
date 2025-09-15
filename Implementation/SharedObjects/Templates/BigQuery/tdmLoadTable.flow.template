@@ -1,0 +1,174 @@
+tags: LoadFlows
+stages:
+  Description:
+    remark: |-
+      This flow demonstrates the following:
+      1. A table flow with field transformations:
+        a. Changing the sequential value of a field
+      2. Supporting sequence replacement:
+        a. Regular sequence replacement
+        b. Sequence Caching - when a value was already replaced at a previous stage/actor, the new value will be taken from cache.
+    transactional: false
+  Initiate:
+    transactional: false
+    actors:
+      Initiate TDM Load:
+        parent: InitiateTDMLoad_Actor
+        in:
+          iid:
+            external: iid
+          luName:
+            external: luName
+          syncMode:
+            external: syncMode
+  Get Fabric Table Data:
+    transactional: false
+    actors:
+      Get Table Data:
+        parent: DbCommand
+        in:
+          interface:
+            const: fabric
+          sql:
+            const: select * from {{LU_NAME}}.{{{LU_TABLE}}}
+        out:
+          result:
+            schema: '#ref'
+  Pre Transformation:
+    remark: |-
+      Activities before doing special fields mapping.
+      For Example,in case of population depended sequence, set the Sequence Name based on the Population ID field from Fabric table
+  Transformation:
+    remark: "Transformation of special fields. Fields that need to be changed/replaced\
+      \ before loading to target table. \nFor example, replace sequence or masking\
+      \ the field's value"
+    actors:
+      Transformation Error Handler:
+        parent: ErrorHandler
+        error: result
+        in:
+          config:
+            const:
+            - exceptionKey: java.lang.Exception
+              conditions:
+                message: ''
+              actions:
+                suppress: false
+                log: false
+                flowName: PopulateTableErrorsWithFailed
+      Handle Mask And Sequential Fields:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: HandleMaskAndSeqFields
+          luName:
+            const: {{LU_NAME}}
+            schema: string
+            editor:
+              id: com.k2view.logicalUnit
+              addEmptyEntry: true
+            mandatory: false
+          tableName:
+            const: {{{TARGET_TABLE}}}
+            schema: string
+            mandatory: false
+          dataPlatform:
+            const: {{TARGET_INTERFACE}}
+            schema: string
+            editor:
+              id: com.k2view.mTableKey
+            mandatory: false
+          schema:
+            const: {{{TARGET_SCHEMA}}}
+            schema: string
+            editor:
+              id: com.k2view.mTableKey
+            mandatory: false
+          row:
+            link:
+              path: Get Table Data/result
+              iterate: Iterate
+            schema: '#ref'
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+  Load Data To Target:
+    transactional: true
+    actors:
+      Error Handler:
+        parent: ErrorHandler
+        error: result
+        in:
+          config:
+            const:
+            - exceptionKey: java.lang.Exception
+              conditions:
+                message: ''
+              actions:
+                suppress: false
+                log: true
+                flowName: PopulateTableErrorsWithFailed
+      {{#neq MAIN_TABLE_SEQ_ID "NO_ID"}}
+      Set Target Entity ID:
+        parent: FabricSet
+        in:
+          key:
+            const: TARGET_ENTITY_ID
+            default: false
+          value:
+            const: null
+            link: Handle Mask And Sequential Fields/result/{{MAIN_TABLE_SEQ_ID}}
+            default: false
+      {{/neq}}
+      Load {{{TARGET_TABLE}}} Table:
+        parent: BigQueryWrite
+        in:
+          interface:
+            const: {{TARGET_INTERFACE}}
+          dataset:
+            const: {{{TARGET_SCHEMA}}}
+          table:
+            const: {{{TARGET_TABLE}}}
+          streamType:
+            const: PENDING
+          data:
+            link: Handle Mask And Sequential Fields/result
+  Post Record Loading:
+    last: 1
+  Get Statistics:
+    actors:
+      Read Stats:
+        parent: StatsReader
+  Report Statistics:
+    actors:
+      Load Stats To TDM Table:
+        parent: StatsLoader
+        in:
+          table:
+            const: {{{TARGET_TABLE}}}
+          stats:
+            link: Read Stats/flow
+  Post Table Loading: {
+    }
+schemas:
+  Get Table Data.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        {{#each LU_TABLE_COLUMNS}}
+        {{this}}:
+           type: Any{{/each}}
+  Handle Mask And Sequential Fields.in.row:
+    type: object
+    properties:
+       {{#each LU_TABLE_COLUMNS}}
+        {{this}}:
+           type: Any{{/each}}
+  Handle Mask And Sequential Fields.out.result:
+    type: object
+    properties:
+       {{#each LU_TABLE_COLUMNS}}
+        {{this}}:
+           type: Any{{/each}}

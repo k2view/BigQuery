@@ -1,0 +1,118 @@
+{
+    "tags": [
+        "Generate Data",
+        "GeneratorFlows"
+    ],
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Set Outputs Based On Data Type",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {{#if TABLE_FIELDS}}
+                        {{#each TABLE_FIELDS~}}
+                        {
+                            "name": "{{getLUFieldName this}}",
+                            "actorType": {
+                                "parentType": "{{getGDActorName this}}",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        {{#if @last}} } {{else}} }, {{/if}}
+						{{/each}}
+						{{/if}}
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Build Maps",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {{#if TABLE_FIELDS}}
+                        {{#each TABLE_FIELDS~}}
+                        {
+                            "name": "Build {{getLUFieldName this}} Map",
+                            "actorType": {
+                                "parentType": "MapBuild",
+                                "inputs": [
+                                    {
+                                        "name": "key",
+                                        "schema": {
+                                            "type": "string"
+                                        },
+                                        "const": "{{getLUFieldName this}}"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        {{#if @last}} } {{else}} }, {{/if}}
+						{{/each}}
+						{{/if}}
+                    ]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Create One Record",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "Merge Maps",
+                            "actorType": {
+                                "parentType": "MapMerge",
+                                "inputs": [],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "connections": [
+        {{#if TABLE_FIELDS}}
+        {{#each TABLE_FIELDS~}}
+        {
+            "leftPort": {
+                "actor": "{{getLUFieldName this}}",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "Build {{getLUFieldName this}} Map",
+                "name": "value"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "Build {{getLUFieldName this}} Map",
+                "name": "map"
+            },
+            "rightPort": {
+                "actor": "Merge Maps",
+                "name": "maps"
+            },
+            "arrayPosition": {{@index}}
+        },
+        {{/each}}
+		{{/if}}
+        {
+            "leftPort": {
+                "actor": "Merge Maps",
+                "name": "map"
+            },
+            "rightPort": {
+                "actor": "flowArgs",
+                "name": "value"
+            }
+        }
+    ]
+}

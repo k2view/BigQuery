@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TableObject xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Name>{{TableName}}</Name>
+  <ID>{{TableName}}</ID>
+  <Version>7.0.0.23</Version>
+  <SerializationName />
+  <Columns>
+  {{#each Columns~}}
+    <Column name="{{getDeleleColumnName this}}" id="{{getDeleleColumnName this}}" index="{{@index}}" datatype="{{getDeleleColumnType this}}" mandatory="true" serializationName="{{getDeleleColumnName this}}" />
+  {{/each}}
+  </Columns>
+  <IndexesList />
+  <EnrichmentList />
+  <LazyDataUpdate syncMethod="DecisionFunction" performEvery="1.00:00:00">
+    <DecisionFunction>fnDecisionDeleteFromTarget</DecisionFunction>
+  </LazyDataUpdate>
+  <TriggersList />
+</TableObject>

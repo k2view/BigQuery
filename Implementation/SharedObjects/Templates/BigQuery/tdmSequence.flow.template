@@ -1,0 +1,234 @@
+{
+    "levels": [
+        {
+            "stages": [
+                {
+                    "name": "Get Sequence Details",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "actors": [
+                        {
+                            "name": "Get Task Exec ID",
+                            "actorType": {
+                                "parentType": "FabricSetRead",
+                                "inputs": [
+                                    {
+                                        "name": "key",
+                                        "const": "execution_id",
+                                        "isDefault": false
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "Get LU Type",
+                            "actorType": {
+                                "parentType": "FabricSetRead",
+                                "inputs": [
+                                    {
+                                        "name": "key",
+                                        "const": "LU_TYPE",
+                                        "isDefault": false
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "Get next Value of Sequence",
+                            "actorType": {
+                                "parentType": "MaskingSequence",
+                                "inputs": [
+                                    {
+                                        "name": "maskingId",
+                                        "const": "{{SEQUENCE_NAME}}"
+                                    },
+                                    {
+                                        "name": "useEnvironment",
+                                        "const": true
+                                    },
+                                    {
+                                        "name": "useExecutionId",
+                                        "const": true
+                                    },
+                                    {
+                                        "name": "useInstanceId",
+                                        "const": true
+                                    },
+                                    {
+                                        "name": "hashedInputValue",
+                                        "const": false
+                                    },
+                                    {
+                                        "name": "interface",
+                                        "const": "{{getSeqCacheInterface __LU_NAME}}"
+                                    },
+                                    {
+                                        "name": "sequenceInterface",
+                                        "const": "{{SEQUENCE_REDIS_DB}}"
+                                    },
+                                    {
+                                        "name": "initialValue",
+                                        "const": "{{INITIATE_VALUE_FLOW}}"
+                                    },
+									{
+                                        "name": "TTL",
+                                        "const": 0
+                                    },
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ],
+                                "outputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+										}
+									}
+								]
+							}
+                        }						 
+					]
+                }
+            ]
+        },
+        {
+            "stages": [
+                {
+                    "name": "Report to TDM_SEQ_MAPPING Table",
+                    "dependsOnList": [],
+                    "isLast": 0,
+                    "isTransactional": false,
+                    "actors": [
+                        {
+                            "name": "Only If the original value was given",
+                            "condition": "result",
+                            "actorType": {
+                                "parentType": "NotNull",
+                                "inputs": [
+                                    {
+                                        "name": "value",
+                                        "schema": {
+                                            "type": "string"
+                                        }
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        },
+                        {
+                            "name": "Populate TDM_SEQ_MAPPING",
+                            "actorType": {
+                                "parentType": "SeqMappingStore",
+                                "inputs": [
+                                    {
+                                        "name": "seq_name",
+                                        "const": "{{SEQUENCE_NAME}}"
+                                    }
+                                ],
+                                "outputs": []
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "connections": [
+        {
+            "leftPort": {
+                "actor": "Get Task Exec ID",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Populate TDM_SEQ_MAPPING",
+                "name": "task_execution_id"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "Get LU Type",
+                "name": "result"
+            },
+            "rightPort": {
+                "actor": "Populate TDM_SEQ_MAPPING",
+                "name": "lu_type"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "Get next Value of Sequence",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "Populate TDM_SEQ_MAPPING",
+                "name": "target_value"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "flowArgs",
+                "name": "OriginalSeqValue"
+            },
+            "rightPort": {
+                "actor": "Get next Value of Sequence",
+                "name": "value"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "Get next Value of Sequence",
+                "name": "value"
+            },
+            "rightPort": {
+                "actor": "flowArgs",
+                "name": "NewSeqValue"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "flowArgs",
+                "name": "OriginalSeqValue"
+            },
+            "rightPort": {
+                "actor": "Only If the original value was given",
+                "name": "value"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "flowArgs",
+                "name": "tableName"
+            },
+            "rightPort": {
+                "actor": "Populate TDM_SEQ_MAPPING",
+                "name": "table_name"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "flowArgs",
+                "name": "columName"
+            },
+            "rightPort": {
+                "actor": "Populate TDM_SEQ_MAPPING",
+                "name": "column_name"
+            }
+        },
+        {
+            "leftPort": {
+                "actor": "flowArgs",
+                "name": "OriginalSeqValue"
+            },
+            "rightPort": {
+                "actor": "Populate TDM_SEQ_MAPPING",
+                "name": "source_value"
+            }
+        }
+    ]
+}

@@ -33,13 +33,13 @@ import static com.k2view.cdbms.shared.user.UserCode.*;
 import static com.k2view.cdbms.shared.utils.UserCodeDescribe.FunctionType.*;
 import static com.k2view.cdbms.usercode.common.BigQuery.BigQueryParamParser.parseBqValue;
 
-@SuppressWarnings({"all"})
+@SuppressWarnings({ "all" })
 public class SharedLogic {
-	@type(CustomIoProvider)
-	@out(name = "ioProvider", type = IoProvider.class, desc = "")
-	public static IoProvider bigQueryIoProvider() throws Exception {
-		return new BigQueryIoProvider();
-	}
+    @type(CustomIoProvider)
+    @out(name = "ioProvider", type = IoProvider.class, desc = "")
+    public static IoProvider bigQueryIoProvider() throws Exception {
+        return new BigQueryIoProvider();
+    }
 
     public static Object bqParseTdmQueryParam(String fieldName, String value, String type) {
         // Assuming value is primitive for the sake of select queries built by TDM
@@ -90,12 +90,12 @@ public class SharedLogic {
     private static StandardSQLTypeName mapToStandardSQLType(String type) {
         // Remove precision/length specifiers, e.g., "STRING(10)" → "STRING"
         String baseType = type.replaceAll("\\(.*\\)", "").toUpperCase();
-    
+
         // Handle special case: ARRAY<TYPE>
         if (baseType.startsWith("ARRAY<")) {
             return StandardSQLTypeName.ARRAY;
         }
-    
+
         return switch (baseType) {
             case "STRING" -> StandardSQLTypeName.STRING;
             case "INT64", "INTEGER" -> StandardSQLTypeName.INT64;
@@ -111,31 +111,44 @@ public class SharedLogic {
         };
     }
 
-    public static Iterable<Map<String, Object>> bqParentRowsMapper(String lu, String table, Iterable<Map<String, Object>> parentRows) {
-        LUType luType = LUType.getTypeByName(lu);
-        if (!table.equalsIgnoreCase(luType.rootObjectName)) {
-            return parentRows;
+    public static Iterable<Map<String, Object>> bqParentRowsMapper(
+            String lu,
+            String table,
+            Iterable<Map<String, Object>> parentRows) {
+
+        if (parentRows == null) {
+            return Collections.emptyList();
         }
+
+        LUType luType = LUType.getTypeByName(lu);
         LudbColumn ludbEntityIDColumnObject = luType.ludbEntityIDColumnObject;
         String iidColName = ludbEntityIDColumnObject.originColumnName;
-        Map<String, Object> row = parentRows.iterator().next();
-        Object oldVal = row.get(iidColName);
-        Object newVal;
-        switch (ludbEntityIDColumnObject.originalColumnDataType.toUpperCase()) {
-            case "INTEGER" -> newVal = ParamConvertor.toInteger(oldVal);
-            case "REAL" -> newVal = ParamConvertor.toReal(oldVal);
-            case "DATETIME", "DATE", "TIME" -> newVal = ParamConvertor.toDate(oldVal);
-            case "BLOB" -> newVal = ParamConvertor.toBuffer(oldVal);
-            case "TEXT" -> newVal = ParamConvertor.toString(oldVal);
-            default -> newVal = oldVal;
+        String colType = ludbEntityIDColumnObject.originalColumnDataType.toUpperCase();
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Map<String, Object> originalRow : parentRows) {
+            Map<String, Object> row = new LinkedHashMap<>(originalRow);
+
+            Object oldVal = row.get(iidColName);
+            Object newVal = switch (colType) {
+                case "INTEGER" -> ParamConvertor.toInteger(oldVal);
+                case "REAL" -> ParamConvertor.toReal(oldVal);
+                case "DATETIME", "DATE", "TIME" -> ParamConvertor.toDate(oldVal);
+                case "BLOB" -> ParamConvertor.toBuffer(oldVal);
+                case "TEXT" -> ParamConvertor.toString(oldVal);
+                default -> oldVal;
+            };
+
+            row.put(iidColName, newVal);
+            result.add(row);
         }
-        row.replace(iidColName, newVal);
-        return List.of(row);
+
+        return result;
     }
 
     public static String bqGetDatasetsProject(String interfaceName, String env) {
-        return ((GenericInterface) InterfacesManager.getInstance().getTypedInterface(interfaceName, env)).getProperty(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
+        return ((GenericInterface) InterfacesManager.getInstance().getTypedInterface(interfaceName, env))
+                .getProperty(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
     }
-    
 
 }

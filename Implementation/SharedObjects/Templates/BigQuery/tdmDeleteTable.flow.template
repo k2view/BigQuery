@@ -1,0 +1,92 @@
+tags: DeleteFlows
+stages:
+  Description:
+    remark: |-
+      This flow demonstrates the following:
+      1. A table flow using PKs from a Fabric LU table
+      2. Building a DELETE with positional parameters (?)
+      3. Executing one delete per LU row
+    transactional: false
+  Initiate:
+    transactional: false
+    actors:
+      {{#eq MAIN_TABLE_IND "true"}}
+      Set Target Environment:
+        parent: setTargetEnv_Actor
+      {{/eq}}
+      Initiate TDM Delete:
+        parent: InitiateTDMLoad_Actor
+        in:
+          luName:
+            external: luName
+          iid:
+            external: iid
+          syncMode:
+            external: syncMode
+  Get Fabric Table Data:
+    transactional: false
+    actors:
+      Get Table Data:
+        parent: DbCommand
+        in:
+          interface:
+            const: fabric
+          sql:
+            const: select distinct
+              {{#each TARGET_TABLE_PKS}}{{#if this}}{{#if @first}}{{this}}{{else}},{{this}}{{/if}}{{/if}}{{/each}}
+              from {{LU_NAME}}.{{{DELETE_TABLE}}}
+        out:
+          result:
+            schema:
+              type: array
+              items:
+                type: object
+                properties: {}
+  Delete Data From Target:
+    last: 1
+    actors:
+      Error Handler:
+        parent: ErrorHandler
+        error: result
+        in:
+          config:
+            const:
+            - exceptionKey: java.lang.Exception
+              conditions:
+                message: ''
+              actions:
+                suppress: false
+                log: true
+                flowName: PopulateTableErrorsWithFailed
+      Delete {{{TARGET_TABLE}}} Rows:
+        parent: DbCommand
+        in:
+          interface:
+            const: {{TARGET_INTERFACE}}
+          sql:
+            const: delete from `$projectId.{{{TARGET_SCHEMA}}}.{{{TARGET_TABLE}}}`
+                    where {{#each TARGET_TABLE_PKS~}}{{#if this}}{{#if @first}}{{{this}}}={{dollarBrace}}{{{this}}}{{closeBrace}}{{else}} and
+                    {{{this}}}={{dollarBrace}}{{{this}}}{{closeBrace}}{{/if}}{{/if}}{{/each}}
+          {{#each TARGET_TABLE_PKS}}
+          {{#if this}}
+          {{{this}}}:
+            schema: any
+            mandatory: false
+          {{/if}}
+          {{/each}}
+          params:
+            link:
+              path: Get Table Data/result
+              iterate: Iterate
+schemas:
+  Get Table Data.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        {{#each TARGET_TABLE_PKS}}
+        {{#if this}}
+        {{{this}}}:
+          type: Any
+        {{/if}}
+        {{/each}}
