@@ -53,6 +53,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.4.1
+- Fix parent rows mapper in TDM table population.
+
 ### v1.4.0
 - Add TDM templates.
 - Handle empty parent rows in LU table population

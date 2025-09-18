@@ -129,17 +129,15 @@ public class SharedLogic {
         for (Map<String, Object> originalRow : parentRows) {
             Map<String, Object> row = new LinkedHashMap<>(originalRow);
 
-            Object oldVal = row.get(iidColName);
-            Object newVal = switch (colType) {
-                case "INTEGER" -> ParamConvertor.toInteger(oldVal);
-                case "REAL" -> ParamConvertor.toReal(oldVal);
-                case "DATETIME", "DATE", "TIME" -> ParamConvertor.toDate(oldVal);
-                case "BLOB" -> ParamConvertor.toBuffer(oldVal);
-                case "TEXT" -> ParamConvertor.toString(oldVal);
-                default -> oldVal;
-            };
-
-            row.put(iidColName, newVal);
+            row.computeIfPresent(iidColName, (k, v) -> switch (colType) {
+                case "INTEGER" -> ParamConvertor.toInteger(v);
+                case "REAL" -> ParamConvertor.toReal(v);
+                case "DATETIME", "DATE", "TIME" -> ParamConvertor.toDate(v);
+                case "BLOB" -> ParamConvertor.toBuffer(v);
+                case "TEXT" -> ParamConvertor.toString(v);
+                default -> v;
+            });
+            
             result.add(row);
         }
 
