@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GenericInterface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="BigQuery" displayName="" enabled="true" version="1.4">
+    <Name>BigQuery_RND</Name>
+    <Properties>
+        <Property name="authenticationMethod">
+            <Value>default</Value>
+        </Property>
+        <Property name="OAuthPvtKeyPath">
+            <Value>/opt/apps/fabric/workspace/project/project-resources/k2view-rnd-223f0987944b.json</Value>
+        </Property>
+        <Property name="ProjectId">
+            <Value>k2view-rnd</Value>
+        </Property>
+        <Property name="jobsProjectId">
+            <Value>k2view-rnd</Value>
+        </Property>
+        <Property name="snapshotViaStorageApi">
+            <Value>false</Value>
+        </Property>
+        <Property name="ioprovider">
+            <Value>bigQueryIoProvider</Value>
+        </Property>
+        <Property name="delegate">
+            <Value></Value>
+        </Property>
+    </Properties>
+</GenericInterface>
