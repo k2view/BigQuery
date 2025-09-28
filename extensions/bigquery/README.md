@@ -53,6 +53,10 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.4.2
+- Upgrade BigQuery jars to 2.54.0 to resolve vulnerabilities in dependencies: netty-common and netty-buffer.
+- Upgrade Avro dependency org.apache.commons.commons-lang3 to 3.18.0 to resolve vulnerability.
+
 ### v1.4.1
 - Fix parent rows mapper in TDM table population.
 
