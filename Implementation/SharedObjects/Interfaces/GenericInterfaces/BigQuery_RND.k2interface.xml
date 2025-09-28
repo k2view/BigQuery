@@ -3,7 +3,7 @@
     <Name>BigQuery_RND</Name>
     <Properties>
         <Property name="authenticationMethod">
-            <Value>default</Value>
+            <Value>file</Value>
         </Property>
         <Property name="OAuthPvtKeyPath">
             <Value>/opt/apps/fabric/workspace/project/project-resources/k2view-rnd-223f0987944b.json</Value>

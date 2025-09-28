@@ -3,7 +3,7 @@
     <Name>BigQuery_QA</Name>
     <Properties>
         <Property name="authenticationMethod">
-            <Value>default</Value>
+            <Value>file</Value>
         </Property>
         <Property name="OAuthPvtKeyPath">
             <Value>/opt/apps/fabric/workspace/project/project-resources/k2view-qa-54e8812add30.json</Value>
