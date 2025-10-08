@@ -53,6 +53,11 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.4.3
+- Fix catalog definedBy for bytes, boolean.
+- Remove column size 0 from catalog (caused issue in masking).
+- Accept java.sql.Timestamp in writes.
+
 ### v1.4.2
 - Upgrade BigQuery jars to 2.54.0 to resolve vulnerabilities in dependencies: netty-common and netty-buffer.
 - Upgrade Avro dependency org.apache.commons.commons-lang3 to 3.18.0 to resolve vulnerability.

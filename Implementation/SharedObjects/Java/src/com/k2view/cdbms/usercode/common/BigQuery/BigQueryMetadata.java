@@ -38,6 +38,13 @@ import com.k2view.discovery.schema.model.impl.ConcreteDataset;
 import com.k2view.discovery.schema.model.impl.ConcreteField;
 import com.k2view.discovery.schema.model.impl.ConcreteNode;
 import com.k2view.discovery.schema.model.impl.ConcreteSchemaNode;
+import com.k2view.discovery.schema.model.impl.PrimitiveClass;
+import com.k2view.discovery.schema.model.types.BooleanClass;
+import com.k2view.discovery.schema.model.types.BytesClass;
+import com.k2view.discovery.schema.model.types.DateClass;
+import com.k2view.discovery.schema.model.types.IntegerClass;
+import com.k2view.discovery.schema.model.types.RealClass;
+import com.k2view.discovery.schema.model.types.StringClass;
 import com.k2view.discovery.schema.model.types.UnknownClass;
 import com.k2view.discovery.schema.utils.SampleSize;
 import com.k2view.fabric.common.Log;
@@ -46,6 +53,8 @@ import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.IoCommand;
 import com.k2view.fabric.common.io.IoCommand.Row;
 import com.k2view.fabric.common.io.IoSession;
+
+import static com.k2view.cdbms.usercode.common.BigQuery.DatasetFieldsBuilder.definedBy;
 
 public class BigQueryMetadata implements IoMetadata {
     private static final String STATUS_CRAWLER = "crawler";
@@ -197,7 +206,8 @@ public class BigQueryMetadata implements IoMetadata {
     }
 
     private void addSchemaNodes(ConcreteDataPlatform dataPlatform) throws Exception {
-        String query = String.format("SELECT * EXCEPT (schema_owner) FROM %s.INFORMATION_SCHEMA.SCHEMATA", datasetsProjectId);
+        String query = String.format("SELECT * EXCEPT (schema_owner) FROM %s.INFORMATION_SCHEMA.SCHEMATA",
+                datasetsProjectId);
         List<Object> statementParams = new LinkedList<>();
         Set<String> include = schemasInclude.stream().filter(schema -> !schemasExclude.contains(schema))
                 .collect(Collectors.toSet());
@@ -281,7 +291,8 @@ public class BigQueryMetadata implements IoMetadata {
         for (IoCommand.Row row : tables) {
             assertAborted();
             String tableName = row.get(TABLE_NAME).toString();
-            FieldList fields = bqClient.getTable(TableId.of(datasetsProjectId, schemaNode.getName(), tableName)).getDefinition().getSchema()
+            FieldList fields = bqClient.getTable(TableId.of(datasetsProjectId, schemaNode.getName(), tableName))
+                    .getDefinition().getSchema()
                     .getFields();
             tableFields.put(tableName, fields);
             // MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid,
@@ -326,9 +337,9 @@ public class BigQueryMetadata implements IoMetadata {
                             fieldNode.addProperty(context.idPrefix(), Category.sourceEntityType.name(), "Role",
                                     "Column", 1.0,
                                     CRAWLER, "");
-                            fieldNode.addProperty(context.idPrefix(), Category.columnSize.name(),
-                                    "Max column size in bytes",
-                                    0, 1.0, CRAWLER, "");
+                            // fieldNode.addProperty(context.idPrefix(), Category.columnSize.name(),
+                            //         "Max column size in bytes",
+                            //         0, 1.0, CRAWLER, "");
                             fieldNode.addProperty(context.idPrefix(), Category.sqlDataType.name(), "SQL data type",
                                     SQL_TYPE_MAPPING.getOrDefault(
                                             sourceDataType.startsWith("REPEATED") ? ""
@@ -341,7 +352,7 @@ public class BigQueryMetadata implements IoMetadata {
                                     UnknownClass.UNKNOWN.getClassName(), 1.0, CRAWLER, "");
                         } else if (schema.type().isPrimitive()) {
                             fieldNode.addProperty(context.idPrefix(), Category.definedBy.name(), "Data type for field",
-                                    schema.type().name().toUpperCase(), 1.0, CRAWLER, "");
+                                    definedBy(schema.type()).getName().toUpperCase(), 1.0, CRAWLER, "");
                         }
 
                         // List<Row> uniqueConstraints = tableKeyColumnUsageMap.getOrDefault(tableName,
@@ -613,7 +624,8 @@ public class BigQueryMetadata implements IoMetadata {
 
     @Override
     public BigQuerySnapshot snapshotDataset(String dataset, String schema, SampleSize size, Map<String, Object> map) {
-        return new BigQuerySnapshot(commandSession, readSession, dataset, schema, datasetsProjectId, size, snapshotViaStorage);
+        return new BigQuerySnapshot(commandSession, readSession, dataset, schema, datasetsProjectId, size,
+                snapshotViaStorage);
     }
 
     @Override

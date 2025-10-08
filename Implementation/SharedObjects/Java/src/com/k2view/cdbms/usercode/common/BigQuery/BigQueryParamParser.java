@@ -491,12 +491,7 @@ public class BigQueryParamParser {
     }
 
     private static byte[] toByteArray(Object param) {
-        if (param instanceof byte[] b) {
-            return b;
-        } else if (param instanceof ByteBuffer byteBuffer) {
-            return byteBuffer.array();
-        }
-        throw new IllegalArgumentException("Expected BYTES but received: " + param.getClass().getName());
+        return ParamConvertor.toBuffer(param);
     }
 
     private static String toTimestampString(Object param) {
@@ -537,7 +532,9 @@ public class BigQueryParamParser {
     private static String toDateTimeString(Object param) {
         if (param instanceof LocalDateTime localDateTime) {
             return localDateTime.toString().replace("T", " ");
-        } else if (param instanceof String s) {
+        } else if (param instanceof Timestamp t) {
+            return t.toLocalDateTime().toString().replace("T", " ");
+        }else if (param instanceof String s) {
             return s;
         }
         throw new IllegalArgumentException("Expected DATETIME but received: " + param.getClass().getName());

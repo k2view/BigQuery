@@ -16,7 +16,15 @@ import com.k2view.discovery.schema.model.Property;
 import com.k2view.discovery.schema.model.impl.ConcreteClassNode;
 import com.k2view.discovery.schema.model.impl.ConcreteField;
 import com.k2view.discovery.schema.model.impl.ConcreteNode;
+import com.k2view.discovery.schema.model.impl.PrimitiveClass;
 import com.k2view.discovery.schema.model.impl.PropertyImpl;
+import com.k2view.discovery.schema.model.types.BooleanClass;
+import com.k2view.discovery.schema.model.types.BytesClass;
+import com.k2view.discovery.schema.model.types.DateClass;
+import com.k2view.discovery.schema.model.types.IntegerClass;
+import com.k2view.discovery.schema.model.types.RealClass;
+import com.k2view.discovery.schema.model.types.StringClass;
+import com.k2view.discovery.schema.model.types.UnknownClass;
 
 public class DatasetFieldsBuilder {
     private static final String CRAWLER = "Crawler";
@@ -83,6 +91,25 @@ public class DatasetFieldsBuilder {
         });
     }
 
+    static PrimitiveClass definedBy(Type type) {
+        switch (type) {
+            case blob:
+                return BytesClass.BYTES;
+            case bool:
+                return BooleanClass.BOOLEAN;
+            case date:
+                return DateClass.DATE;
+            case integer:
+                return IntegerClass.INTEGER;
+            case real:
+                return RealClass.REAL;
+            case string:
+                return StringClass.STRING;
+            default:
+                return UnknownClass.UNKNOWN;
+        }
+    }
+
     private static void processArray(
             ConcreteField field,
             Schema fieldSchema,
@@ -94,7 +121,7 @@ public class DatasetFieldsBuilder {
         Type itemsType = itemsSchema.type();
 
         if (itemsType.isPrimitive()) {
-            String fieldType = "Collection(".repeat(collectionDepth) + itemsType.name().toUpperCase()
+            String fieldType = "Collection(".repeat(collectionDepth) + definedBy(itemsType).getName().toUpperCase()
                     + ")".repeat(collectionDepth);
             field.addProperty(idPrefix(FIELD, field), Category.definedBy.name(), "Data type for field", fieldType, 1.0,
                     CRAWLER, "");
