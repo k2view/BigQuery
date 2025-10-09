@@ -6,13 +6,18 @@
 				<Property name="authenticationMethod" displayName="Authentication Method" dataType="OptionsList" mandatory="true" readOnly="false" category="">
 					<OptionsList>
 						<Option value="default">Application Default Credentials</Option>
-						<Option value="file">Service Account Key File</Option>
+						<Option value="json">Credentials JSON</Option>
+						<Option value="file">Credentials File</Option>
 					</OptionsList>
 					<DefaultValue>default</DefaultValue>
 				</Property>
-                <Property name="OAuthPvtKeyPath" displayName="OAuth Private Key Path" dataType="string" mandatory="false" readOnly="false" category="" showExp="[[authenticationMethod==file]]">
+                <Property name="OAuthPvtKeyPath" displayName="Credentials File Path" dataType="string" mandatory="false" readOnly="false" category="" showExp="[[authenticationMethod==file]]">
 					<DefaultValue></DefaultValue>
 					<Comments>Path to private key file</Comments>
+				</Property>
+				<Property name="credentialsJSON" displayName="Credentials JSON" dataType="password" mandatory="false" readOnly="false" category="" showExp="[[authenticationMethod==json]]">
+					<DefaultValue></DefaultValue>
+					<Comments>The content of Service Account Credentials JSON.</Comments>
 				</Property>
                 <Property name="ProjectId" displayName="Data Owner Project Id" dataType="string" mandatory="true" readOnly="false" category="">
 					<DefaultValue></DefaultValue>

@@ -14,6 +14,7 @@ import com.k2view.fabric.common.io.IoSession;
 public class BigQueryIoProvider implements IoProvider {
     static final String SESSION_PROP_SNAPSHOT_VIA_STORAGE = "snapshotViaStorageApi";
     static final String SESSION_PROP_CREDENTIALS_FILE = "credentialsFilePath";
+    static final String SESSION_PROP_CREDENTIALS_JSON = "credentialsJSON";
     static final String SESSION_PROP_DATASETS_PROJECT = "ProjectId";
     static final String SESSION_PROP_USER_PROJECT = "jobsProjectId";
     static final String SESSION_PROP_INTERFACE = "interface";
@@ -46,9 +47,11 @@ public class BigQueryIoProvider implements IoProvider {
         // Open READ/WRITE session based on Operation input, and pass the params
         // extracted from Data property set in the interface
         Map<String, Object> sessionProps = Util.map(SESSION_PROP_AUTHENTICATION_METHOD, authenticationMethod,
-                SESSION_PROP_INTERFACE, interfaceName, SESSION_PROP_CREDENTIALS_FILE, credentialFilePath, SESSION_PROP_SNAPSHOT_VIA_STORAGE,
-                snapshotViaStorageApi, SESSION_PROP_DATASETS_PROJECT,
-                datasetsProjectId,
+                SESSION_PROP_INTERFACE, interfaceName,
+                SESSION_PROP_CREDENTIALS_FILE, credentialFilePath,
+                SESSION_PROP_CREDENTIALS_JSON, ParamConvertor.toString(map.get(SESSION_PROP_CREDENTIALS_JSON)),
+                SESSION_PROP_SNAPSHOT_VIA_STORAGE, snapshotViaStorageApi,
+                SESSION_PROP_DATASETS_PROJECT, datasetsProjectId,
                 SESSION_PROP_USER_PROJECT, userProjectId);
         if (Operation.READ == operation) {
             return new BigQueryReadIoSession(sessionProps);

@@ -20,7 +20,8 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 2. Create a BigQuery interface.
 3. In the interface settings, set the desired credentials method:
    - [Application Default Credentials](https://cloud.google.com/docs/authentication/application-default-credentials)
-   - [Service Account Key File](https://developers.google.com/workspace/guides/create-credentials#create_credentials_for_a_service_account) - specify the path to the credentials JSON file under `OAuth Private Key Path`.
+   - Credentials JSON - the content of credentials JSON file.
+   - [Credentials File](https://developers.google.com/workspace/guides/create-credentials#create_credentials_for_a_service_account) - specify the path to the credentials JSON file under `Credentials File`.
 4. Set the `Data-Accessing Project Id` — the project from which the query jobs and Storage API read sessions will be initiated when accessing data in BigQuery.
 5. Set the `Data Owner Project Id` to the project in which the datasets and tables exist.  
    > **Important:** You must use the placeholder __$projectId__ in your query so that it is dynamically replaced at runtime with the value of this property.  
@@ -52,6 +53,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ---
 
 ## Change Log
+
+### v1.5.0
+- Add authentication mode option of `Credentials JSON`.
 
 ### v1.4.4
 - Fix definedBy for Datetime.
