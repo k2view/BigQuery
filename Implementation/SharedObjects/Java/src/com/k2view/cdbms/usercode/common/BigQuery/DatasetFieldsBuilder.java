@@ -4,6 +4,7 @@ import java.sql.Types;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import com.k2view.broadway.metadata.Any;
 import com.k2view.broadway.metadata.ArrayType;
@@ -49,8 +50,8 @@ public class DatasetFieldsBuilder {
      *                       how fields are handled.
      */
     public static void fromObjectSchema(ConcreteClassNode datasetClass, ObjectType objSchema,
-            Consumer<SchemaPropertyContext> schemaContextConsumer) {
-        processObject(datasetClass, objSchema, true, 0, schemaContextConsumer);
+            Consumer<SchemaPropertyContext> schemaContextConsumer, Function<String, PrimitiveClass> definedByProvider) {
+        processObject(datasetClass, objSchema, true, 0, schemaContextConsumer, definedByProvider);
     }
 
     private static void processObject(
@@ -58,7 +59,8 @@ public class DatasetFieldsBuilder {
             ObjectType objType,
             boolean isTopLevel,
             int collectionDepth,
-            Consumer<SchemaPropertyContext> schemaConsumer) {
+            Consumer<SchemaPropertyContext> schemaConsumer,
+            Function<String, PrimitiveClass> definedByProvider) {
         final AtomicInteger i = new AtomicInteger(0);
         objType.properties().forEach((innerFieldName, innerFieldSchema) -> {
             ConcreteField innerField = new ConcreteField(innerFieldName, 1.0, CRAWLER, "", "Field name",
@@ -73,7 +75,7 @@ public class DatasetFieldsBuilder {
 
             if (type == Type.array) {
                 processArray(innerField, (ArrayType) innerFieldSchema, isTopLevel, collectionDepth + 1,
-                        classNode.getId(), schemaConsumer);
+                        classNode.getId(), schemaConsumer, definedByProvider);
             } else if (type == Type.object) {
                 String fieldClass = ComplexFieldPlugin.createClassName(innerFieldName);
                 String innerClassId = isTopLevel ? fieldClass : classNode.getId() + INNER_CLASS_DELIMITER + fieldClass;
@@ -84,30 +86,11 @@ public class DatasetFieldsBuilder {
                         definedByProperties(innerFieldName, innerClassId));
                 innerField.addProperty(innerClassId, Category.definedBy.name(), "Data type for field", innerClassId,
                         1.0, CRAWLER, "");
-                processObject(innerClassNode, (ObjectType) innerFieldSchema, false, collectionDepth, schemaConsumer);
+                processObject(innerClassNode, (ObjectType) innerFieldSchema, false, collectionDepth, schemaConsumer, definedByProvider);
             }
 
             classNode.contains(innerField, 1.0, CRAWLER, "");
         });
-    }
-
-    static PrimitiveClass definedBy(Type type) {
-        switch (type) {
-            case blob:
-                return BytesClass.BYTES;
-            case bool:
-                return BooleanClass.BOOLEAN;
-            case date:
-                return DateClass.DATE;
-            case integer:
-                return IntegerClass.INTEGER;
-            case real:
-                return RealClass.REAL;
-            case string:
-                return StringClass.STRING;
-            default:
-                return UnknownClass.UNKNOWN;
-        }
     }
 
     private static void processArray(
@@ -116,17 +99,18 @@ public class DatasetFieldsBuilder {
             boolean isTopLevel,
             int collectionDepth,
             String fieldParentId,
-            Consumer<SchemaPropertyContext> schemaConsumer) {
+            Consumer<SchemaPropertyContext> schemaConsumer,
+            Function<String, PrimitiveClass> definedByProvider) {
         Schema itemsSchema = fieldSchema.items();
         Type itemsType = itemsSchema.type();
 
         if (itemsType.isPrimitive()) {
-            String fieldType = "Collection(".repeat(collectionDepth) + definedBy(itemsType).getName().toUpperCase()
+            String fieldType = "Collection(".repeat(collectionDepth) + definedByProvider.apply(itemsSchema.description()).getName().toUpperCase()
                     + ")".repeat(collectionDepth);
             field.addProperty(idPrefix(FIELD, field), Category.definedBy.name(), "Data type for field", fieldType, 1.0,
                     CRAWLER, "");
         } else if (itemsType == Type.array) {
-            processArray(field, itemsSchema.items(), isTopLevel, collectionDepth + 1, fieldParentId, schemaConsumer);
+            processArray(field, itemsSchema.items(), isTopLevel, collectionDepth + 1, fieldParentId, schemaConsumer, definedByProvider);
         } else if (itemsType == Type.object) {
             String fieldClass = ComplexFieldPlugin.createClassName(field.getId());
             String innerClassId = isTopLevel ? fieldClass : fieldParentId + INNER_CLASS_DELIMITER + fieldClass;
@@ -137,7 +121,7 @@ public class DatasetFieldsBuilder {
             field.definedBy(innerClassNode, 1.0, CRAWLER, "", definedByProperties(field.getName(), innerClassId));
             field.addProperty(innerClassId, Category.definedBy.name(), "Data type for field", definedBy, 1.0, CRAWLER,
                     "");
-            processObject(innerClassNode, (ObjectType) itemsSchema, false, 0, schemaConsumer);
+            processObject(innerClassNode, (ObjectType) itemsSchema, false, 0, schemaConsumer, definedByProvider);
         }
     }
 

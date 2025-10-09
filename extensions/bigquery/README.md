@@ -53,6 +53,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.4.4
+- Fix definedBy for Datetime.
+
 ### v1.4.3
 - Fix catalog definedBy for bytes, boolean.
 - Remove column size 0 from catalog (caused issue in masking).

@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.google.cloud.bigquery.BigQuery;
@@ -24,6 +25,7 @@ import com.k2view.broadway.metadata.Properties;
 import com.k2view.broadway.metadata.Schema;
 import com.k2view.broadway.metadata.Type;
 import com.k2view.cdbms.lut.InterfacesManager;
+import com.k2view.cdbms.usercode.common.BigQuery.DatasetFieldsBuilder.SchemaPropertyContext;
 import com.k2view.discovery.MonitorStatusUpdater;
 import com.k2view.discovery.rules.CrawlerRules;
 import com.k2view.discovery.rules.DataPlatformMetaDataInfo;
@@ -42,9 +44,11 @@ import com.k2view.discovery.schema.model.impl.PrimitiveClass;
 import com.k2view.discovery.schema.model.types.BooleanClass;
 import com.k2view.discovery.schema.model.types.BytesClass;
 import com.k2view.discovery.schema.model.types.DateClass;
+import com.k2view.discovery.schema.model.types.DateTimeClass;
 import com.k2view.discovery.schema.model.types.IntegerClass;
 import com.k2view.discovery.schema.model.types.RealClass;
 import com.k2view.discovery.schema.model.types.StringClass;
+import com.k2view.discovery.schema.model.types.TimeClass;
 import com.k2view.discovery.schema.model.types.UnknownClass;
 import com.k2view.discovery.schema.utils.SampleSize;
 import com.k2view.fabric.common.Log;
@@ -53,8 +57,6 @@ import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.IoCommand;
 import com.k2view.fabric.common.io.IoCommand.Row;
 import com.k2view.fabric.common.io.IoSession;
-
-import static com.k2view.cdbms.usercode.common.BigQuery.DatasetFieldsBuilder.definedBy;
 
 public class BigQueryMetadata implements IoMetadata {
     private static final String STATUS_CRAWLER = "crawler";
@@ -72,6 +74,7 @@ public class BigQueryMetadata implements IoMetadata {
     // private static final String CONSTRAINT_NAME = "constraint_name";
     private static final String TABLE_NAME = "table_name";
     private static final Map<StandardSQLTypeName, Integer> SQL_TYPE_MAPPING = createBQToSQLTypeMap();
+    private static final Map<StandardSQLTypeName, PrimitiveClass> DEFINED_BY_MAPPING = createBQToDefinedByMap();
 
     private final Log log = Log.a(this.getClass());
     private IoSession commandSession;
@@ -111,6 +114,28 @@ public class BigQueryMetadata implements IoMetadata {
         map.put(StandardSQLTypeName.TIME, Types.TIME);
         map.put(StandardSQLTypeName.TIMESTAMP, Types.TIMESTAMP);
         map.put(StandardSQLTypeName.RANGE, Types.VARCHAR);
+
+        return map;
+    }
+
+    private static Map<StandardSQLTypeName, PrimitiveClass> createBQToDefinedByMap() {
+        Map<StandardSQLTypeName, PrimitiveClass> map = new HashMap<>();
+        map.put(StandardSQLTypeName.BIGNUMERIC, RealClass.REAL);
+        map.put(StandardSQLTypeName.BOOL, BooleanClass.BOOLEAN);
+        map.put(StandardSQLTypeName.BYTES, BytesClass.BYTES);
+        map.put(StandardSQLTypeName.DATE, DateClass.DATE);
+        map.put(StandardSQLTypeName.DATETIME, DateTimeClass.DATETIME);
+        map.put(StandardSQLTypeName.FLOAT64, RealClass.REAL);
+        map.put(StandardSQLTypeName.GEOGRAPHY, UnknownClass.UNKNOWN);
+        map.put(StandardSQLTypeName.INT64, IntegerClass.INTEGER);
+        map.put(StandardSQLTypeName.INTERVAL, UnknownClass.UNKNOWN);
+        map.put(StandardSQLTypeName.JSON, UnknownClass.UNKNOWN);
+        map.put(StandardSQLTypeName.NUMERIC, RealClass.REAL);
+        map.put(StandardSQLTypeName.STRING, StringClass.STRING);
+        map.put(StandardSQLTypeName.STRUCT, UnknownClass.UNKNOWN);
+        map.put(StandardSQLTypeName.TIME, TimeClass.TIME);
+        map.put(StandardSQLTypeName.TIMESTAMP, DateTimeClass.DATETIME);
+        map.put(StandardSQLTypeName.RANGE, UnknownClass.UNKNOWN);
 
         return map;
     }
@@ -286,6 +311,13 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
+    private static PrimitiveClass definedBy(String sourceDataType) {
+        if (sourceDataType == null) return UnknownClass.UNKNOWN;
+        sourceDataType = sourceDataType.toUpperCase();
+        return DEFINED_BY_MAPPING.getOrDefault(sourceDataType.startsWith("REPEATED") ? ""
+                : StandardSQLTypeName.valueOf(sourceDataType), UnknownClass.UNKNOWN);
+    }
+
     private void processTables(ConcreteSchemaNode schemaNode, IoCommand.Result tables,
             Map<String, FieldList> tableFields) throws Exception {
         for (IoCommand.Row row : tables) {
@@ -320,66 +352,69 @@ public class BigQueryMetadata implements IoMetadata {
             schemaNode.contains(datasetNode, 1.0, CRAWLER, "");
 
             DatasetFieldsBuilder.fromObjectSchema(datasetClassNode, convertFieldListToObjectType(fields, null),
-                    (context) -> {
-                        ConcreteField fieldNode = context.field();
-                        int ordinalPosition = context.ordinalPosition();
-                        Schema schema = context.schema();
-                        fieldNode.addProperty(context.idPrefix(), Category.ordinalPosition.name(), "Ordinal position",
-                                ordinalPosition, 1.0, CRAWLER, "");
-                        if (context.isTopLevel()) {
-                            String sourceDataType = schema.description().toUpperCase();
-                            fieldNode.addProperty(context.idPrefix(), Category.sourceDataType.name(), "Column type",
-                                    sourceDataType, 1.0, CRAWLER, "");
-                            fieldNode.addProperty(context.idPrefix(), Category.sourceNullable.name(),
-                                    "Nullability of the field 1 or 0",
-                                    true, 1.0,
-                                    CRAWLER, "");
-                            fieldNode.addProperty(context.idPrefix(), Category.sourceEntityType.name(), "Role",
-                                    "Column", 1.0,
-                                    CRAWLER, "");
-                            // fieldNode.addProperty(context.idPrefix(), Category.columnSize.name(),
-                            //         "Max column size in bytes",
-                            //         0, 1.0, CRAWLER, "");
-                            fieldNode.addProperty(context.idPrefix(), Category.sqlDataType.name(), "SQL data type",
-                                    SQL_TYPE_MAPPING.getOrDefault(
-                                            sourceDataType.startsWith("REPEATED") ? ""
-                                                    : StandardSQLTypeName.valueOf(sourceDataType),
-                                            Types.VARCHAR),
-                                    1.0, CRAWLER, "");
-                        }
-                        if (schema.equals(Any.ANY)) {
-                            fieldNode.addProperty(context.idPrefix(), Category.definedBy.name(), "Data type for field",
-                                    UnknownClass.UNKNOWN.getClassName(), 1.0, CRAWLER, "");
-                        } else if (schema.type().isPrimitive()) {
-                            fieldNode.addProperty(context.idPrefix(), Category.definedBy.name(), "Data type for field",
-                                    definedBy(schema.type()).getName().toUpperCase(), 1.0, CRAWLER, "");
-                        }
-
-                        // List<Row> uniqueConstraints = tableKeyColumnUsageMap.getOrDefault(tableName,
-                        // new LinkedList<>())
-                        // .stream()
-                        // .filter(constraint -> constraint.get(POSITION_IN_UNIQUE_CONSTRAINT) == null)
-                        // .collect(Collectors.toList());
-
-                        // if (!Util.isEmpty(uniqueConstraints)) {
-                        // uniqueConstraints
-                        // .stream()
-                        // .filter(constraint -> constraint.get(COLUMN_NAME).equals(field.getName()))
-                        // .findFirst()
-                        // .ifPresent(constraint -> fieldNode.addProperty(
-                        // this.idPrefix(FIELD, fieldNode),
-                        // "pk",
-                        // "Primary Key (Unenforced)",
-                        // true,
-                        // 1.0,
-                        // CRAWLER,
-                        // ""));
-                        // }
-                    });
+                    this::schemaContextConsumer,
+                    BigQueryMetadata::definedBy);
             int progress = fields.size();
             totalFields += progress;
             MonitorStatusUpdater.getInstance().updateProgress(STATUS_CRAWLER, jobUid, progress);
         }
+    }
+
+    private void schemaContextConsumer(SchemaPropertyContext context) {
+        ConcreteField fieldNode = context.field();
+        int ordinalPosition = context.ordinalPosition();
+        Schema schema = context.schema();
+        fieldNode.addProperty(context.idPrefix(), Category.ordinalPosition.name(), "Ordinal position",
+                ordinalPosition, 1.0, CRAWLER, "");
+        String sourceDataType = schema.description() != null ? schema.description() : "";
+        if (context.isTopLevel()) {
+            fieldNode.addProperty(context.idPrefix(), Category.sourceDataType.name(), "Column type",
+                    sourceDataType, 1.0, CRAWLER, "");
+            fieldNode.addProperty(context.idPrefix(), Category.sourceNullable.name(),
+                    "Nullability of the field 1 or 0",
+                    true, 1.0,
+                    CRAWLER, "");
+            fieldNode.addProperty(context.idPrefix(), Category.sourceEntityType.name(), "Role",
+                    "Column", 1.0,
+                    CRAWLER, "");
+            // fieldNode.addProperty(context.idPrefix(), Category.columnSize.name(),
+            // "Max column size in bytes",
+            // 0, 1.0, CRAWLER, "");
+            fieldNode.addProperty(context.idPrefix(), Category.sqlDataType.name(), "SQL data type",
+                    SQL_TYPE_MAPPING.getOrDefault(
+                            sourceDataType.startsWith("REPEATED") ? ""
+                                    : StandardSQLTypeName.valueOf(sourceDataType.toUpperCase()),
+                            Types.VARCHAR),
+                    1.0, CRAWLER, "");
+        }
+        if (schema.equals(Any.ANY)) {
+            fieldNode.addProperty(context.idPrefix(), Category.definedBy.name(), "Data type for field",
+                    UnknownClass.UNKNOWN.getClassName(), 1.0, CRAWLER, "");
+        } else if (schema.type().isPrimitive()) {
+            fieldNode.addProperty(context.idPrefix(), Category.definedBy.name(), "Data type for field",
+                    definedBy(sourceDataType).getName().toUpperCase(), 1.0, CRAWLER, "");
+        }
+
+        // List<Row> uniqueConstraints = tableKeyColumnUsageMap.getOrDefault(tableName,
+        // new LinkedList<>())
+        // .stream()
+        // .filter(constraint -> constraint.get(POSITION_IN_UNIQUE_CONSTRAINT) == null)
+        // .collect(Collectors.toList());
+
+        // if (!Util.isEmpty(uniqueConstraints)) {
+        // uniqueConstraints
+        // .stream()
+        // .filter(constraint -> constraint.get(COLUMN_NAME).equals(field.getName()))
+        // .findFirst()
+        // .ifPresent(constraint -> fieldNode.addProperty(
+        // this.idPrefix(FIELD, fieldNode),
+        // "pk",
+        // "Primary Key (Unenforced)",
+        // true,
+        // 1.0,
+        // CRAWLER,
+        // ""));
+        // }
     }
 
     private AutoCloseableStatementsResults execQueriesInParallel(QueryAndParams... queries)
