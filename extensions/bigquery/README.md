@@ -54,6 +54,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.5.1
+- Support secret manager in `Credentials JSON` authentication mode.
+
 ### v1.5.0
 - Add authentication mode option of `Credentials JSON`.
 

@@ -15,7 +15,7 @@
 					<DefaultValue></DefaultValue>
 					<Comments>Path to private key file</Comments>
 				</Property>
-				<Property name="credentialsJSON" displayName="Credentials JSON" dataType="password" mandatory="false" readOnly="false" category="" showExp="[[authenticationMethod==json]]">
+				<Property name="credentialsJSON" displayName="Credentials JSON" dataType="password" mandatory="false" readOnly="false" category="" showExp="[[authenticationMethod==json]]" secretManagerHelper="true">
 					<DefaultValue></DefaultValue>
 					<Comments>The content of Service Account Credentials JSON.</Comments>
 				</Property>
