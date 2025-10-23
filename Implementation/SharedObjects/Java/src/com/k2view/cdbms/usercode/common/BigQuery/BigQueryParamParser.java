@@ -415,6 +415,7 @@ public class BigQueryParamParser {
     }
 
     private static Object parseUnrepeatedValue(Object param, Field field) {
+        if (param == null) return null;
         switch (field.getType().getStandardType()) {
             case STRING:
                 return param.toString();

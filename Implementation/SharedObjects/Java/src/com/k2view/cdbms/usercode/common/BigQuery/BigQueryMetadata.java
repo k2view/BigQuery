@@ -129,7 +129,7 @@ public class BigQueryMetadata implements IoMetadata {
         map.put(StandardSQLTypeName.GEOGRAPHY, UnknownClass.UNKNOWN);
         map.put(StandardSQLTypeName.INT64, IntegerClass.INTEGER);
         map.put(StandardSQLTypeName.INTERVAL, UnknownClass.UNKNOWN);
-        map.put(StandardSQLTypeName.JSON, UnknownClass.UNKNOWN);
+        map.put(StandardSQLTypeName.JSON, StringClass.STRING);
         map.put(StandardSQLTypeName.NUMERIC, RealClass.REAL);
         map.put(StandardSQLTypeName.STRING, StringClass.STRING);
         map.put(StandardSQLTypeName.STRUCT, UnknownClass.UNKNOWN);

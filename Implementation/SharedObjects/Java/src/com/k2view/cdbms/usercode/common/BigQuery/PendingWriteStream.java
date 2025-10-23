@@ -5,8 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Phaser;
-
-import javax.annotation.concurrent.GuardedBy;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.json.JSONArray;
 
@@ -137,10 +136,7 @@ public class PendingWriteStream implements WriteStream {
         // shutting down.
         private final Phaser inFlightRequestCount = new Phaser(1);
 
-        private final Object lock = new Object();
-
-        @GuardedBy("lock")
-        private RuntimeException error = null;
+        private final AtomicReference<RuntimeException> error = new AtomicReference<>(null);
 
         void initialize(TableName parentTable, BigQueryWriteClient bigQueryWriteClient)
                 throws IOException, DescriptorValidationException, InterruptedException {
@@ -169,11 +165,10 @@ public class PendingWriteStream implements WriteStream {
 
         public void append(JSONArray data)
                 throws DescriptorValidationException, IOException, ExecutionException {
-            synchronized (this.lock) {
-                if (this.error != null) {
-                    log.debug("Earlier appends have failed. Need to reset before continuing.");
-                    throw this.error;
-                }
+            RuntimeException err = error.get();
+            if (err != null) {
+                log.debug("Earlier appends have failed. Need to reset before continuing.");
+                throw err;
             }
             // Increase the count of in-flight requests.
             inFlightRequestCount.register();
@@ -189,6 +184,10 @@ public class PendingWriteStream implements WriteStream {
                         future, new AppendCompleteCallback(this), MoreExecutors.directExecutor());
             } catch (Exceptions.AppendSerializtionError e) {
                 log.error(e.getRowIndexToErrorMessage().toString());
+                inFlightRequestCount.arriveAndDeregister();
+                throw e;
+            } catch (Throwable e) {
+                inFlightRequestCount.arriveAndDeregister();
                 throw e;
             }
         }
@@ -201,11 +200,10 @@ public class PendingWriteStream implements WriteStream {
             this.streamWriter.close();
 
             // Verify that no error occurred in the stream.
-            synchronized (this.lock) {
-                if (this.error != null) {
-                    log.debug("An error occurred in the stream.");
-                    throw this.error;
-                }
+            RuntimeException e = error.get();
+            if (e != null) {
+                log.debug("An error occurred in the stream.");
+                throw e;
             }
 
             // Finalize the stream.
@@ -233,13 +231,14 @@ public class PendingWriteStream implements WriteStream {
 
             public void onFailure(Throwable throwable) {
                 log.debug("onFailure");
-                synchronized (this.parent.lock) {
-                    if (this.parent.error == null) {
+                parent.error.updateAndGet(current -> {
+                    if (current == null) {
                         StorageException storageException = Exceptions.toStorageException(throwable);
-                        this.parent.error = (storageException != null) ? storageException
-                                : new RuntimeException(throwable);
+                        return (storageException != null) ? storageException : new RuntimeException(throwable);
+                    } else {
+                        return current;
                     }
-                }
+                });
                 log.error("Error: {}", throwable.toString());
                 done();
             }

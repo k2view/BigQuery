@@ -54,6 +54,11 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.5.2
+- Handle NPE in case of null inside an array in BigQueryWrite Actor (not really allowed, but previously it was failing in incorrect place).
+- Avoid hanging writer stream cleanup in case an exception occurs before assigning a callback.
+- Set definedBy of JSON to STRING instead of UNKNOWN (ComplexFieldParser plugin overrides it anyway, needed just in case the plugin is disabled or the value is null always)
+
 ### v1.5.1
 - Support secret manager in `Credentials JSON` authentication mode.
 

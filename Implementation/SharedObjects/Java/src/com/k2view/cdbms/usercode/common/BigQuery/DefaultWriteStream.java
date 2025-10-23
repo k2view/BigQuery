@@ -5,8 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Phaser;
-
-import javax.annotation.concurrent.GuardedBy;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.json.JSONArray;
 
@@ -15,19 +14,6 @@ import com.google.api.core.ApiFutureCallback;
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.core.FixedCredentialsProvider;
 import com.google.auth.Credentials;
-/*
-    For debugging info, add the XML lines below on logback.xml.
-    Don't forget to remove the comment delimiters to make them effective.
-
-    <!--<logger name="com.k2view.com.k2view.cdbms.usercode.common.BigQuery" level="DEBUG" />-->
-    <!--<logger name="com.google" level="DEBUG" />-->
-    <!--<logger name="io.grpc" level="DEBUG" />-->
-*/
-import com.google.cloud.bigquery.BigQuery;
-import com.google.cloud.bigquery.BigQueryOptions;
-import com.google.cloud.bigquery.Schema;
-import com.google.cloud.bigquery.Table;
-import com.google.cloud.bigquery.TableId;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteClient;
 import com.google.cloud.bigquery.storage.v1.BigQueryWriteSettings;
@@ -116,11 +102,9 @@ public class DefaultWriteStream implements WriteStream {
         // Track the number of in-flight requests to wait for all responses before
         // shutting down.
         private final Phaser inFlightRequestCount = new Phaser(1);
-        private final Object lock = new Object();
         private JsonStreamWriter streamWriter;
 
-        @GuardedBy("lock")
-        private RuntimeException error = null;
+        private final AtomicReference<RuntimeException> error = new AtomicReference<>(null);
 
         public void initialize(TableName parentTable, BigQueryWriteClient bigQueryWriteClient)
                 throws DescriptorValidationException, IOException, InterruptedException {
@@ -141,22 +125,31 @@ public class DefaultWriteStream implements WriteStream {
         }
 
         public void append(AppendContext appendContext) throws DescriptorValidationException, IOException {
-            synchronized (this.lock) {
-                if (this.error != null) {
-                    log.debug("Earlier appends have failed. Need to reset before continuing.");
-                    throw this.error;
-                }
+            RuntimeException err = error.get();
+            if (err != null) {
+                log.debug("Earlier appends have failed. Need to reset before continuing.");
+                throw err;
             }
 
-            // Append asynchronously for increased throughput.
-            ApiFuture<AppendRowsResponse> future = this.streamWriter.append(appendContext.data);
+            try {
+                // Append asynchronously for increased throughput.
+                ApiFuture<AppendRowsResponse> future = this.streamWriter.append(appendContext.data);
 
-            ApiFutures.addCallback(future, new AppendCompleteCallback(this, appendContext),
-                    MoreExecutors.directExecutor());
+                ApiFutures.addCallback(future, new AppendCompleteCallback(this, appendContext),
+                        MoreExecutors.directExecutor());
 
-            this.inFlightRequestCount.register();
-            log.debug("In-flight requests counter increased. registered={}",
-                    this.inFlightRequestCount.getRegisteredParties());
+                this.inFlightRequestCount.register();
+                log.debug("In-flight requests counter increased. registered={}",
+                        this.inFlightRequestCount.getRegisteredParties());
+            } catch (Exceptions.AppendSerializtionError e) {
+                log.error(e.getRowIndexToErrorMessage().toString());
+                inFlightRequestCount.arriveAndDeregister();
+                throw e;
+            } catch (Throwable e) {
+                inFlightRequestCount.arriveAndDeregister();
+                throw e;
+            }
+
         }
 
         public void cleanup() {
@@ -166,11 +159,10 @@ public class DefaultWriteStream implements WriteStream {
 
             this.streamWriter.close();
 
-            synchronized (this.lock) {
-                if (this.error != null) {
-                    log.debug("An error occurred in the stream.");
-                    throw this.error;
-                }
+            RuntimeException e = error.get();
+            if (e != null) {
+                log.debug("An error occurred in the stream.");
+                throw e;
             }
         }
 
@@ -229,13 +221,14 @@ public class DefaultWriteStream implements WriteStream {
                 }
 
                 log.debug("onFailure - Verifying that no error occurred in the stream.");
-                synchronized (this.parent.lock) {
-                    if (this.parent.error == null) {
+                parent.error.updateAndGet(current -> {
+                    if (current == null) {
                         StorageException storageException = Exceptions.toStorageException(throwable);
-                        this.parent.error = (storageException != null) ? storageException
-                                : new RuntimeException(throwable);
+                        return (storageException != null) ? storageException : new RuntimeException(throwable);
+                    } else {
+                        return current;
                     }
-                }
+                });
 
                 log.error("onFailure - Error", throwable);
                 done();
