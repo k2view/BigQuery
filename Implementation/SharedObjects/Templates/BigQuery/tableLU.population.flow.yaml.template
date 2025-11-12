@@ -69,7 +69,7 @@ stages:
           field:
             const: {{#unless isRootTable}}{{#if docFieldName}}{{{docFieldName}}}{{/if}}{{/unless}}
           parent_rows:
-            link: {{#if isRootTable}}Query/result{{else}}PopulationArgs/parent_rows{{/if}}
+            link: {{#if isRootTable}}Query/result{{else}}BqParentRowsMapper/result{{/if}}
       Get SEQ_CACHE_INTERFACE:
         parent: FabricSetRead
         in:
