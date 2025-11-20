@@ -1,0 +1,53 @@
+tags: DeleteFlows
+stages:
+  Pre Delete Table: {
+    }
+  {{#each Tables}}
+  Delete Tables Level {{indexPlus @index}}:
+    actors:
+      {{#if @index}}
+      Check if Entity has not failed {{indexPlus @index}}:
+        parent: NotEquals
+        condition: result
+        in:
+          b:
+            const: failed
+            schema: string
+          a:
+            link: Get Entity Status {{@index}}/result
+      {{/if}}{{~#each this}}
+      delete_{{this}}:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: delete_{{this}}
+       {{~/each}}
+      Get Entity Status {{indexPlus @index}}:
+        parent: FabricSetRead
+        in:
+          key:
+            const: ENTITY_STATUS
+            default: false
+    {{~/each}}
+  Delete Documents:
+    actors:
+      {{#neq Size -1}}
+      Check if Tables had not failed:
+        parent: NotEquals
+        condition: result
+        in:
+          b:
+            const: failed
+            schema: string
+          a:
+            link: Get Entity Status 1{{@index}}/result
+      {{/neq}}
+      {{#each Documents}}
+      delete_{{this}}:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: delete_{{this}}
+      {{/each}}
+  Post Delete Table: {
+    }

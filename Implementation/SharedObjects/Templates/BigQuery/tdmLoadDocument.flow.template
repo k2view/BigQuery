@@ -1,0 +1,88 @@
+tags: LoadFlows
+stages:
+  Create Documnent:
+    actors:
+      Document Assemble:
+        parent: DocumentAssemble
+        in:
+          luType:
+            const: {{LU_NAME}}
+          mtable:
+            schema: any
+          dataPlatform:
+            const: {{SOURCE_INTERFACE}}
+          schema:
+            const: {{{SOURCE_SCHEMA}}}
+          dataset:
+            const: {{{SOURCE_TABLE}}}
+          root:
+            const: {{{SOURCE_TABLE}}}
+        out:
+          document:
+            schema: '#ref'
+      Get SEQ_CACHE_INTERFACE:
+        parent: FabricSetRead
+        in:
+          key:
+            const: SEQ_CACHE_INTERFACE
+            default: false
+  Mask Data:
+    actors:
+      Catalog Masking Mapper:
+        parent: CatalogMaskingMapper
+        in:
+          interface:
+            const: null
+            link: Get SEQ_CACHE_INTERFACE/result
+          mtable:
+            schema: any
+          dataPlatform:
+            const: {{SOURCE_INTERFACE}}
+          schema:
+            const: {{{SOURCE_SCHEMA}}}
+          dataset:
+            const: {{{SOURCE_TABLE}}}
+          useEnvironment:
+            const: true
+            schema: boolean
+          useExecutionId:
+            const: true
+            schema: boolean
+          values:
+            link: Document Assemble/document
+  Write To DB:
+    actors:
+      {{#eq MAIN_TABLE_IND "true"}}
+      Set Target Entity ID:
+        parent: FabricSet
+        in:
+          key:
+            const: TARGET_ENTITY_ID
+            default: false
+          value:
+            const: null
+            link:
+              path: Catalog Masking Mapper/values/{{{MAIN_FIELD_NAME}}}
+              iterate: Iterate
+            default: false
+      {{/eq}}
+      Load {{{TARGET_TABLE}}} Table:
+        parent: BigQueryWrite
+        in:
+          interface:
+            const: {{TARGET_INTERFACE}}
+          dataset:
+            const: {{{TARGET_SCHEMA}}}
+          table:
+            const: {{{TARGET_TABLE}}}
+          streamType:
+            const: PENDING
+          data:
+            link:
+              path: Catalog Masking Mapper/values
+              iterate: Iterate
+schemas:
+  Document Assemble.out.document:
+    type: array
+    items:
+      type: object

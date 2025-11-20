@@ -1,0 +1,53 @@
+tags: LoadFlows
+stages:
+  Pre Load Table: {
+    }
+  {{#each Tables}}
+  Load Tables Level {{indexPlus @index}}:
+    actors:
+      {{#if @index}}
+      Check if Entity has not failed {{indexPlus @index}}:
+        parent: NotEquals
+        condition: result
+        in:
+          b:
+            const: failed
+            schema: string
+          a:
+            link: Get Entity Status {{@index}}/result
+      {{/if}}{{~#each this}}
+      load_{{this}}:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: load_{{this}}
+      {{~/each}}
+      Get Entity Status {{indexPlus @index}}:
+        parent: FabricSetRead
+        in:
+          key:
+            const: ENTITY_STATUS
+            default: false
+    {{~/each}}
+  Load Documents:
+    actors:
+      {{#neq Size -1}}
+      Check if Tables had not failed:
+        parent: NotEquals
+        condition: result
+        in:
+          b:
+            const: failed
+            schema: string
+          a:
+            link: Get Entity Status 1{{@index}}/result
+      {{/neq}}
+      {{#each Documents}}
+      load_{{this}}:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: load_{{this}}
+      {{/each}}
+  Post Load Table: {
+    }
