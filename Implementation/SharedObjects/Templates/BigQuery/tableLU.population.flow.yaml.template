@@ -44,7 +44,7 @@ stages:
             schema:
               type: array
               items:
-                type: object
+                type: object {{#if isRootTable}}
   Source:
     actors:
       Query:
@@ -60,7 +60,47 @@ stages:
             link: BqParentRowsMapper/result{{#if sourceQueryOutputs}}
         out:
           result:
-            schema: '#ref'{{/if}}
+            schema: '#ref'{{/if}}{{/if}}
+  Mapping:
+    actors:
+      DocumentQuery:
+        parent: DocumentQuery
+        in:
+          field:
+            const: {{#unless isRootTable}}{{#if docFieldName}}{{{docFieldName}}}{{/if}}{{/unless}}
+          parent_rows:
+            link: {{#if isRootTable}}Query/result{{else}}BqParentRowsMapper/result{{/if}}
+      Get SEQ_CACHE_INTERFACE:
+        parent: FabricSetRead
+        in:
+          key:
+            const: SEQ_CACHE_INTERFACE
+            default: false
+  Masking:
+    actors:
+      Catalog Masking Mapper:
+        parent: CatalogMaskingMapper
+        in:
+          interface:
+            const: null
+            link: Get SEQ_CACHE_INTERFACE/result
+          mtable:
+            schema: any
+          dataPlatform:
+            const: {{#if sourceInterface}}{{sourceInterface}}{{else}}null{{/if}}
+          schema:
+            const: {{#if sourceSchema}}{{sourceSchema}}{{else}}null{{/if}}
+          dataset:
+            const: {{#if sourceTable}}{{sourceTable}}{{else}}null{{/if}}
+          catalogClassName:
+            const: {{#if catalogClass}}{{catalogClass}}{{else}}null{{/if}}
+            schema: string
+            mandatory: false
+          values:
+            link: DocumentQuery/result
+        out:
+          values:
+            schema: '#ref'
   LU Table:
     last: 1
     actors:
@@ -95,7 +135,7 @@ stages:
           {{/each}}
           params:
             link:
-              path: Query/result
+              path: Catalog Masking Mapper/values
               iterate: Iterate
   Post Load: {
     }

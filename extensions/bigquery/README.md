@@ -55,7 +55,7 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 ## Change Log
 
 ### v1.6.0
-- Add support for Query Builder, starting from Fabric 8.4.
+- Added support for complex fields (starting from TDM 9.4.2).
 
 ### v1.5.2
 - Handle NPE in case of null inside an array in BigQueryWrite Actor (not really allowed, but previously it was failing in incorrect place).

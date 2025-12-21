@@ -1,0 +1,51 @@
+tags: DeleteFlows
+stages:
+  LU Name:
+    actors:
+      Get LU Name:
+        parent: LuFunction
+        in:
+          functionName:
+            const: fnGetLuType
+        out:
+          luType:
+            schema: string
+  Target Entity:
+    actors:
+      Get Target Entity:
+        parent: InnerFlow
+        in:
+          flowName:
+            const: getLUVariable
+          luName:
+            link: Get LU Name/luType
+            schema: string
+            mandatory: false
+          variableName:
+            const: TARGET_ENTITY_ID
+            schema: string
+            mandatory: false
+        out:
+          variableValue:
+            schema: string
+  Format ID:
+    actors:
+      Format:
+        parent: {{formatFunction MAIN_FIELD_TYPE}}
+        in:
+          value:
+            link: Get Target Entity/variableValue
+  Delete:
+    actors:
+      Delete {{{TARGET_TABLE}}} Document:
+        parent: DbCommand
+        in:
+          interface:
+            const: {{TARGET_INTERFACE}}
+          sql:
+            const: delete from `$projectId.{{{TARGET_SCHEMA}}}.{{{TARGET_TABLE}}}`
+              where {{{MAIN_FIELD_NAME}}}={{dollarBrace}}{{{MAIN_FIELD_NAME}}}{{closeBrace}}
+          {{MAIN_FIELD_NAME}}:
+            link: Format/{{formatOutputField MAIN_FIELD_TYPE}}
+            schema: any
+            mandatory: false
