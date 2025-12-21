@@ -1,0 +1,103 @@
+tags: MongoDB,BigQuery
+stages:
+  Inputs:
+    actors:
+      Interface:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: interfaceName
+            editor:
+              id: com.k2view.interface
+              interfaceType:
+              - MongoDB
+        out:
+          value:
+            schema: string
+      Sql:
+        parent: Const
+        in:
+          value:
+            const: null
+            external: sql
+            schema: string
+            editor:
+              id: com.k2view.code
+              language: sql
+        out:
+          value:
+            schema: string
+      Limit:
+        parent: JavaScript
+        height: 208
+        in:
+          script:
+            const: 'limit != null && limit > 0 ? limit : 1000;'
+          limit:
+            external: limit
+            schema: integer
+            remark: Limits the number of documents in the result. Default is 100.
+            mandatory: false
+        out:
+          result:
+            schema: integer
+  Query:
+    actors:
+      DbCommand1:
+        parent: DbCommand
+        in:
+          interface:
+            const: null
+            link: Interface/value
+          sql:
+            const: null
+            link: Sql/value
+        out:
+          result:
+            schema: '#ref'
+  Limit result:
+    actors:
+      Limit1:
+        parent: Limit
+        in:
+          limit:
+            const: null
+            link: Limit/result
+          values:
+            link: DbCommand1/result
+        out:
+          values:
+            external: result
+            schema: '#ref'
+schemas:
+  DbCommand1.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        ADDR_ID:
+          type: integer
+        ADDR_LINE_SEQ_ID:
+          type: integer
+        DW_EFF_DT:
+          type: date
+        DW_EXPR_DT:
+          type: date
+        CURR_IN:
+          type: integer
+        RCV_IN:
+          type: integer
+        ADDR_LINE_TX:
+          type: string
+        DW_LOAD_TS: {
+          }
+  Limit1.out.values:
+    type: array
+    items:
+      type: object
+      properties:
+        int_col:
+          type: integer
+        json_col:
+          type: string
