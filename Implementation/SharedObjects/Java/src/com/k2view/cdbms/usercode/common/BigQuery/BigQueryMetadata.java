@@ -172,6 +172,7 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void setIncludeSchema() {
         Set<String> schemaSet = this.dataPlatformMetaDataInfo.getSchemaMetadata().getSet();
         if (!Util.isEmpty(schemaSet) && this.dataPlatformMetaDataInfo.getSchemaMetadata().isIncludeOrExcludeList) {

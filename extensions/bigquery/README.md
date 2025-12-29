@@ -54,6 +54,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.7.0
+- Support query builder, starting from Fabric 8.4.
+
 ### v1.6.0
 - Added support for complex fields (starting from TDM 9.4.2).
 

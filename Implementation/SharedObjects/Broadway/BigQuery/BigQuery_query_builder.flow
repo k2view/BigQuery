@@ -1,4 +1,4 @@
-tags: MongoDB,BigQuery
+tags: BigQuery
 stages:
   Inputs:
     actors:
@@ -33,15 +33,42 @@ stages:
         height: 208
         in:
           script:
-            const: 'limit != null && limit > 0 ? limit : 1000;'
+            const: 'limit > -1 ? limit : 1000;'
           limit:
+            const: 1000
             external: limit
             schema: integer
-            remark: Limits the number of documents in the result. Default is 100.
+            remark: If the query has no limit, a LIMIT clause will be added with this
+              value. In any case, the limit will be enforced on the client side also.
+            default: true
             mandatory: false
+            editor:
+              id: com.k2view.default
+              min: 0
+              max: 1000
         out:
           result:
             schema: integer
+  Add limit if not exists:
+    actors:
+      AddLimit:
+        parent: LuFunction
+        in:
+          functionName:
+            const: bqQueryBuilderAddLimit
+          sql:
+            link: Sql/value
+            schema: any
+            mandatory: false
+            createdBy: functionName
+          limit:
+            link: Limit/result
+            schema: any
+            mandatory: false
+            createdBy: functionName
+        out:
+          result:
+            schema: any
   Query:
     actors:
       DbCommand1:
@@ -52,11 +79,12 @@ stages:
             link: Interface/value
           sql:
             const: null
-            link: Sql/value
+            link: AddLimit/result
         out:
           result:
             schema: '#ref'
   Limit result:
+    remark: Fallback in case user query contains LIMIT
     actors:
       Limit1:
         parent: Limit

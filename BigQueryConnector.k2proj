@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-  <Name>BigQueryConnector</Name>
+  <Name>faress-local</Name>
   <ProductVersion>7.2.2_114</ProductVersion>
   <Mdm>false</Mdm>
   <DataChangeIndicators>

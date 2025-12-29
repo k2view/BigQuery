@@ -7,6 +7,7 @@ package com.k2view.cdbms.usercode.common.BigQuery;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.sql.*;
 import java.math.*;
 import java.io.*;
@@ -147,6 +148,131 @@ public class SharedLogic {
     public static String bqGetDatasetsProject(String interfaceName, String env) {
         return ((GenericInterface) InterfacesManager.getInstance().getTypedInterface(interfaceName, env))
                 .getProperty(BigQueryIoProvider.SESSION_PROP_DATASETS_PROJECT);
+    }
+
+    public static String bqQueryBuilderAddLimit(String sql, int limit) {
+        if (sql == null) return null;
+        String text = sql.trim();
+        if (text.isEmpty()) return sql;
+
+        List<String> statements = splitStatementsSafely(text);
+        if (statements.isEmpty())
+            return sql;
+
+        int last = statements.size() - 1;
+        String lastStmt = statements.get(last).trim();
+
+        if (!lastStmt.toLowerCase().startsWith("select"))
+            return sql;
+
+        boolean hadSemicolon = lastStmt.endsWith(";");
+        if (hadSemicolon)
+            lastStmt = lastStmt.substring(0, lastStmt.length() - 1).trim();
+
+        if (hasLimit(lastStmt))
+            return sql;
+
+        lastStmt = lastStmt + " LIMIT " + limit;
+
+        if (hadSemicolon)
+            lastStmt += ";";
+
+        statements.set(last, lastStmt);
+
+        return joinStatements(statements);
+    }
+
+    private static List<String> splitStatementsSafely(String sql) {
+        List<String> result = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        boolean inSingle = false;
+        boolean inDouble = false;
+        boolean inBacktick = false;
+        boolean inLineComment = false;
+        boolean inBlockComment = false;
+
+        for (int i = 0; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            char n = (i + 1 < sql.length()) ? sql.charAt(i + 1) : '\0';
+
+            // Handle exiting comments first
+            if (inLineComment) {
+                if (c == '\n') inLineComment = false;
+                current.append(c);
+                continue;
+            }
+
+            if (inBlockComment) {
+                if (c == '*' && n == '/') {
+                    inBlockComment = false;
+                    current.append("*/");
+                    i++;
+                } else {
+                    current.append(c);
+                }
+                continue;
+            }
+
+            // Entering comments
+            if (!inSingle && !inDouble && !inBacktick) {
+                if (c == '-' && n == '-') {
+                    inLineComment = true;
+                    current.append("--");
+                    i++;
+                    continue;
+                }
+                if (c == '/' && n == '*') {
+                    inBlockComment = true;
+                    current.append("/*");
+                    i++;
+                    continue;
+                }
+            }
+
+            // String toggles
+            if (c == '\'' && !inDouble && !inBacktick) inSingle = !inSingle;
+            if (c == '"' && !inSingle && !inBacktick) inDouble = !inDouble;
+            if (c == '`' && !inSingle && !inDouble) inBacktick = !inBacktick;
+
+            // Real statement boundary?
+            if (c == ';' && !inSingle && !inDouble && !inBacktick) {
+                result.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+
+        if (current.length() > 0)
+            result.add(current.toString());
+
+        return result.stream()
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+    }
+
+
+    private static boolean hasLimit(String stmt) {
+        // Normalize whitespace, ignore case, avoid false positives
+        String lower = stmt.toLowerCase();
+
+        // If LIMIT exists anywhere outside string literals (approx safe check)
+        return lower.matches("(?s).*\\blimit\\s+\\d+.*");
+    }
+
+
+    private static String joinStatements(List<String> parts) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < parts.size(); i++) {
+            sb.append(parts.get(i).trim());
+            if (!parts.get(i).trim().endsWith(";"))
+                sb.append(";");
+            if (i < parts.size() - 1)
+                sb.append(" ");
+        }
+        return sb.toString().trim();
     }
 
 }
