@@ -27,7 +27,7 @@
     },
     "icon": "bigquery.png",
     "main": "./dist/extension.js",
-    "license": "SEE LICENSE IN LICENSE.txt",
+    "license": "The use of the software is subject to the terms and conditions of the license agreement signed between you and K2view.",
     "contributes": {
         "commands": [
             {
