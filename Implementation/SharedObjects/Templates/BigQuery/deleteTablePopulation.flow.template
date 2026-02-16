@@ -17,7 +17,11 @@ stages:
             schema: any
           table:
             const: null
-            external: table
+            external: table{{#eq MainTableInd true}}
+  Set Target Environment:
+    actors:
+      setTargetEnv:
+        parent: setTargetEnv_Actor{{/eq}}
   Parent Rows Mapper:
     actors:
       BqParentRowsMapper:

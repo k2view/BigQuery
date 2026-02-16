@@ -54,6 +54,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.7.1
+- Fix TDM deleteTablePopulation template.
+
 ### v1.7.0
 - Support query builder, starting from Fabric 8.4.
 
