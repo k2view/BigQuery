@@ -1,6 +1,5 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Iterator;
 
@@ -28,10 +27,10 @@ public class BigQueryIterator implements Iterator<GenericRecord> {
     private final long limit;
     private long currRowsCount;
 
-    private Runnable assertAborted;
+    private final Runnable assertAborted;
 
     public BigQueryIterator(BigQueryReadClient readClient, String streamName, GenericDatumReader<GenericRecord> reader,
-            long limit, Runnable assertAborted) throws IOException {
+            long limit, Runnable assertAborted) {
         this.readClient = readClient;
         this.reader = reader;
         this.responseIterator = streamName == null ? Collections.emptyIterator()
@@ -40,6 +39,7 @@ public class BigQueryIterator implements Iterator<GenericRecord> {
         this.limit = Math.max(limit, 0);
         this.currRowsCount = 0;
         this.assertAborted = assertAborted;
+        log.debug("BigQueryIterator initialized: streamName={}, limit={}", streamName, this.limit);
         advanceToNextRecord();
     }
 

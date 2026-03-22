@@ -1,13 +1,13 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
+import java.util.Map;
+
 import com.k2view.broadway.actors.builtin.AbstractIoSession;
 import com.k2view.broadway.model.Context;
 import com.k2view.broadway.model.Data;
 import com.k2view.broadway.tx.TxManager;
 import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.IoCommand;
-
-import java.util.Map;
 
 public class BigQueryRead extends AbstractIoSession {
     private IoCommand.Result result;
@@ -19,6 +19,16 @@ public class BigQueryRead extends AbstractIoSession {
         this.result = this.execute(input);
         // Put the iterator rows
         output.put("result", this.result);
+    }
+
+    @Override
+    public void close() {
+        // Close all resources
+        Util.safeClose(this.result);
+        this.result = null;
+        Util.safeClose(this.command);
+        this.command = null;
+        super.close();
     }
 
     /*
@@ -41,16 +51,6 @@ public class BigQueryRead extends AbstractIoSession {
         Util.safeClose(result);
         this.command = this.session.statement();
         return command.execute(input.fields());
-    }
-
-    @Override
-    public void close() {
-        // Close all resources
-        Util.safeClose(this.result);
-        this.result = null;
-        Util.safeClose(this.command);
-        this.command = null;
-        super.close();
     }
 }
 

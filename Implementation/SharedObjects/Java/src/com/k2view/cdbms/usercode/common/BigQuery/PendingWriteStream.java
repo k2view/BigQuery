@@ -32,9 +32,134 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.k2view.fabric.common.Log;
 
 public class PendingWriteStream implements WriteStream {
+    // A simple wrapper object showing how the stateful stream writer should be
+    // used.
+    private static class DataWriter {
+        static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
+            private final Log log = Log.a(this.getClass());
+            private final DataWriter parent;
+
+            public AppendCompleteCallback(DataWriter parent) {
+                this.parent = parent;
+                log.debug("parent={}", this.parent);
+            }
+
+            public void onSuccess(AppendRowsResponse response) {
+                log.debug("Append {} success", response.getAppendResult().getOffset().getValue());
+                done();
+            }
+
+            public void onFailure(Throwable throwable) {
+                log.debug("onFailure");
+                parent.error.updateAndGet(current -> {
+                    if (current == null) {
+                        StorageException storageException = Exceptions.toStorageException(throwable);
+                        return (storageException != null) ? storageException : new RuntimeException(throwable);
+                    } else {
+                        return current;
+                    }
+                });
+                log.error("Error: {}", throwable.toString());
+                done();
+            }
+
+            private void done() {
+                log.debug("De-registering in-flight requests. unarrived={}",
+                        this.parent.inFlightRequestCount.getUnarrivedParties());
+                this.parent.inFlightRequestCount.arriveAndDeregister();
+                log.debug("Done! arrived={}", this.parent.inFlightRequestCount.getArrivedParties());
+            }
+        }
+        private final Log log = Log.a(DataWriter.this.getClass());
+        private JsonStreamWriter streamWriter;
+
+        // Track the number of in-flight requests to wait for all responses before
+        // shutting down.
+        private final Phaser inFlightRequestCount = new Phaser(1);
+
+        private final AtomicReference<RuntimeException> error = new AtomicReference<>(null);
+
+        public void append(JSONArray data)
+                throws DescriptorValidationException, IOException, ExecutionException {
+            RuntimeException err = error.get();
+            if (err != null) {
+                log.debug("Earlier appends have failed. Need to reset before continuing.");
+                throw err;
+            }
+            // Increase the count of in-flight requests.
+            inFlightRequestCount.register();
+            log.debug("In-flight requests counter increased. registered={}",
+                    this.inFlightRequestCount.getRegisteredParties());
+
+            // Append asynchronously for increased throughput.
+            try {
+                ApiFuture<AppendRowsResponse> future = streamWriter.append(data);
+                log.debug("future={}", future);
+
+                ApiFutures.addCallback(
+                        future, new AppendCompleteCallback(this), MoreExecutors.directExecutor());
+            } catch (Exceptions.AppendSerializtionError e) {
+                log.error(e.getRowIndexToErrorMessage().toString());
+                inFlightRequestCount.arriveAndDeregister();
+                throw e;
+            } catch (Throwable e) {
+                inFlightRequestCount.arriveAndDeregister();
+                throw e;
+            }
+        }
+
+        public void cleanup(BigQueryWriteClient client) {
+            log.debug("Waiting for in-flight requests to complete. unarrived={}",
+                    this.inFlightRequestCount.getUnarrivedParties());
+            inFlightRequestCount.arriveAndAwaitAdvance();
+
+            this.streamWriter.close();
+
+            // Verify that no error occurred in the stream.
+            RuntimeException e = error.get();
+            if (e != null) {
+                log.debug("An error occurred in the stream.");
+                throw e;
+            }
+
+            // Finalize the stream.
+            FinalizeWriteStreamResponse finalizeResponse = client.finalizeWriteStream(streamWriter.getStreamName());
+            log.debug("Rows written: " + finalizeResponse.getRowCount());
+        }
+
+        public String getStreamName() {
+            return streamWriter.getStreamName();
+        }
+
+        void initialize(TableName parentTable, BigQueryWriteClient bigQueryWriteClient)
+                throws IOException, DescriptorValidationException, InterruptedException {
+            // Initialize a write-stream for the specified table.
+            // For more information on WriteStream.Type, see:
+            // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1/WriteStream.Type.html
+            com.google.cloud.bigquery.storage.v1.WriteStream stream = com.google.cloud.bigquery.storage.v1.WriteStream
+                    .newBuilder().setType(Type.PENDING).build();
+            log.debug("stream={}", stream);
+
+            CreateWriteStreamRequest createWriteStreamRequest = CreateWriteStreamRequest.newBuilder()
+                    .setParent(parentTable.toString())
+                    .setWriteStream(stream)
+                    .build();
+            log.debug("createWriteStreamRequest={}", createWriteStreamRequest);
+
+            com.google.cloud.bigquery.storage.v1.WriteStream writeStream = bigQueryWriteClient
+                    .createWriteStream(createWriteStreamRequest);
+            log.debug("writeStream={}", writeStream);
+            // Use the JSON stream writer to send records in JSON format.
+            // For more information about JsonStreamWriter, see:
+            // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1beta2/JsonStreamWriter.html
+            streamWriter = JsonStreamWriter.newBuilder(writeStream.getName(), bigQueryWriteClient).build();
+            log.debug("streamWriter={}", this.streamWriter);
+        }
+    }
     private final Log log = Log.a(this.getClass());
     private final BigQueryWriteClient bigQueryWriteClient;
     private final Map<String, DataWriter> dataWriters = new HashMap<>();
+
     private final String datasetsProjectId;
 
     public PendingWriteStream(String datasetsProjectId, Credentials credentials) throws IOException {
@@ -125,130 +250,5 @@ public class PendingWriteStream implements WriteStream {
             throw new RuntimeException("Error committing the streams");
         }
         log.debug("Appended and committed records successfully.");
-    }
-
-    // A simple wrapper object showing how the stateful stream writer should be
-    // used.
-    private static class DataWriter {
-        private final Log log = Log.a(DataWriter.this.getClass());
-        private JsonStreamWriter streamWriter;
-        // Track the number of in-flight requests to wait for all responses before
-        // shutting down.
-        private final Phaser inFlightRequestCount = new Phaser(1);
-
-        private final AtomicReference<RuntimeException> error = new AtomicReference<>(null);
-
-        void initialize(TableName parentTable, BigQueryWriteClient bigQueryWriteClient)
-                throws IOException, DescriptorValidationException, InterruptedException {
-            // Initialize a write-stream for the specified table.
-            // For more information on WriteStream.Type, see:
-            // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1/WriteStream.Type.html
-            com.google.cloud.bigquery.storage.v1.WriteStream stream = com.google.cloud.bigquery.storage.v1.WriteStream
-                    .newBuilder().setType(Type.PENDING).build();
-            log.debug("stream={}", stream);
-
-            CreateWriteStreamRequest createWriteStreamRequest = CreateWriteStreamRequest.newBuilder()
-                    .setParent(parentTable.toString())
-                    .setWriteStream(stream)
-                    .build();
-            log.debug("createWriteStreamRequest={}", createWriteStreamRequest);
-
-            com.google.cloud.bigquery.storage.v1.WriteStream writeStream = bigQueryWriteClient
-                    .createWriteStream(createWriteStreamRequest);
-            log.debug("writeStream={}", writeStream);
-            // Use the JSON stream writer to send records in JSON format.
-            // For more information about JsonStreamWriter, see:
-            // https://googleapis.dev/java/google-cloud-bigquerystorage/latest/com/google/cloud/bigquery/storage/v1beta2/JsonStreamWriter.html
-            streamWriter = JsonStreamWriter.newBuilder(writeStream.getName(), bigQueryWriteClient).build();
-            log.debug("streamWriter={}", this.streamWriter);
-        }
-
-        public void append(JSONArray data)
-                throws DescriptorValidationException, IOException, ExecutionException {
-            RuntimeException err = error.get();
-            if (err != null) {
-                log.debug("Earlier appends have failed. Need to reset before continuing.");
-                throw err;
-            }
-            // Increase the count of in-flight requests.
-            inFlightRequestCount.register();
-            log.debug("In-flight requests counter increased. registered={}",
-                    this.inFlightRequestCount.getRegisteredParties());
-
-            // Append asynchronously for increased throughput.
-            try {
-                ApiFuture<AppendRowsResponse> future = streamWriter.append(data);
-                log.debug("future={}", future);
-
-                ApiFutures.addCallback(
-                        future, new AppendCompleteCallback(this), MoreExecutors.directExecutor());
-            } catch (Exceptions.AppendSerializtionError e) {
-                log.error(e.getRowIndexToErrorMessage().toString());
-                inFlightRequestCount.arriveAndDeregister();
-                throw e;
-            } catch (Throwable e) {
-                inFlightRequestCount.arriveAndDeregister();
-                throw e;
-            }
-        }
-
-        public void cleanup(BigQueryWriteClient client) {
-            log.debug("Waiting for in-flight requests to complete. unarrived={}",
-                    this.inFlightRequestCount.getUnarrivedParties());
-            inFlightRequestCount.arriveAndAwaitAdvance();
-
-            this.streamWriter.close();
-
-            // Verify that no error occurred in the stream.
-            RuntimeException e = error.get();
-            if (e != null) {
-                log.debug("An error occurred in the stream.");
-                throw e;
-            }
-
-            // Finalize the stream.
-            FinalizeWriteStreamResponse finalizeResponse = client.finalizeWriteStream(streamWriter.getStreamName());
-            log.debug("Rows written: " + finalizeResponse.getRowCount());
-        }
-
-        public String getStreamName() {
-            return streamWriter.getStreamName();
-        }
-
-        static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
-            private final Log log = Log.a(this.getClass());
-            private final DataWriter parent;
-
-            public AppendCompleteCallback(DataWriter parent) {
-                this.parent = parent;
-                log.debug("parent={}", this.parent);
-            }
-
-            public void onSuccess(AppendRowsResponse response) {
-                log.debug("Append {} success", response.getAppendResult().getOffset().getValue());
-                done();
-            }
-
-            public void onFailure(Throwable throwable) {
-                log.debug("onFailure");
-                parent.error.updateAndGet(current -> {
-                    if (current == null) {
-                        StorageException storageException = Exceptions.toStorageException(throwable);
-                        return (storageException != null) ? storageException : new RuntimeException(throwable);
-                    } else {
-                        return current;
-                    }
-                });
-                log.error("Error: {}", throwable.toString());
-                done();
-            }
-
-            private void done() {
-                log.debug("De-registering in-flight requests. unarrived={}",
-                        this.parent.inFlightRequestCount.getUnarrivedParties());
-                this.parent.inFlightRequestCount.arriveAndDeregister();
-                log.debug("Done! arrived={}", this.parent.inFlightRequestCount.getArrivedParties());
-            }
-        }
     }
 }

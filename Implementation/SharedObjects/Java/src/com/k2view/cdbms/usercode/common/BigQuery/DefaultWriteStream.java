@@ -34,55 +34,6 @@ This class can open/close a BigQuery write stream and write to it. It has two ne
 AppendContext, DataWriter
 * */
 public class DefaultWriteStream implements WriteStream {
-    private final Log log = Log.a(this.getClass());
-    private final String datasetsProjectId;
-    private final BigQueryWriteClient bigQueryWriteClient;
-    private final Map<String, DataWriter> dataWriters = new HashMap<>();
-
-    public DefaultWriteStream(String datasetsProjectId, Credentials credentials) throws IOException {
-        this.datasetsProjectId = datasetsProjectId;
-        log.debug("datasetsProjectId={}", this.datasetsProjectId);
-
-        BigQueryWriteSettings bigQueryWriteSettings = BigQueryWriteSettings
-                .newBuilder()
-                .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
-                .build();
-
-        this.bigQueryWriteClient = BigQueryWriteClient.create(bigQueryWriteSettings);
-
-    }
-
-    public void write(String dataset, String table, JSONArray rows)
-            throws DescriptorValidationException, InterruptedException, IOException {
-        log.debug("dataset={}", dataset);
-        log.debug("table={}", table);
-
-        TableName parentTable = TableName.of(this.datasetsProjectId, dataset, table);
-        log.debug("parentTable={}", parentTable);
-
-        // If we already have a dataWriter for parentTable, we use it, otherwise create
-        // a new one
-        // and save it in dataWriters
-        DataWriter dataWriter = dataWriters.get(parentTable.toString());
-        if (dataWriter == null) {
-            log.debug("Instantiating data writer for {}", parentTable);
-            dataWriter = new DataWriter();
-            dataWriter.initialize(parentTable, this.bigQueryWriteClient);
-            this.dataWriters.put(parentTable.toString(), dataWriter);
-        }
-        AppendContext appendContext = new AppendContext(rows, 0);
-
-        dataWriter.append(appendContext);
-    }
-
-    @Override
-    public void close() {
-        // Close all dataWriters
-        this.dataWriters.forEach((tn, dw) -> dw.cleanup());
-        bigQueryWriteClient.shutdown();
-        bigQueryWriteClient.close();
-    }
-
     private static class AppendContext {
         JSONArray data;
         int retryCount;
@@ -92,16 +43,90 @@ public class DefaultWriteStream implements WriteStream {
             this.retryCount = retryCount;
         }
     }
-
     private static class DataWriter {
-        private final Log log = Log.a(this.getClass());
+        static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
+            private final Log log = Log.a(this.getClass());
+            private final DataWriter parent;
+            private final AppendContext appendContext;
+
+            public AppendCompleteCallback(DataWriter parent, AppendContext appendContext) {
+                this.parent = parent;
+                log.debug("parent={}", this.parent);
+
+                this.appendContext = appendContext;
+            }
+
+            @Override
+            public void onSuccess(AppendRowsResponse response) {
+                log.debug("onSuccess");
+                done();
+            }
+
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.debug("onFailure");
+
+                if (throwable instanceof Exceptions.AppendSerializtionError appendSerializationError) {
+                    log.error("onFailure failedRows={}", appendSerializationError.getRowIndexToErrorMessage());
+                }
+                // If the wrapped exception is a StatusRuntimeException, check the state of the
+                // operation.
+                // If the state is INTERNAL, CANCELLED, or ABORTED, you can retry. For more
+                // information,
+                // see:
+                // https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusRuntimeException.html
+                Status status = Status.fromThrowable(throwable);
+                log.debug("onFailure status={}", status);
+
+                log.debug("onFailure appendContext.retryCount={}", this.appendContext.retryCount);
+                log.debug("onFailure status.getCode={}", status.getCode());
+                if (this.appendContext.retryCount < MAX_RETRY_COUNT && RETRY_ERROR_CODES.contains(status.getCode())) {
+                    this.appendContext.retryCount++;
+                    try {
+                        log.debug("onFailure - Retrying the append.");
+                        // Since default stream appends are not ordered, we can simply retry the
+                        // appends.
+                        // Retrying with exclusive streams requires more careful consideration.
+                        this.parent.append(this.appendContext);
+                        // Mark the existing attempt as done since it's being retried.
+                        done();
+                        return;
+                    } catch (Exception e) {
+                        // Fall through to return error.
+                        log.error("onFailure - Failed to retry append", e);
+                    }
+                }
+
+                log.debug("onFailure - Verifying that no error occurred in the stream.");
+                parent.error.updateAndGet(current -> {
+                    if (current == null) {
+                        StorageException storageException = Exceptions.toStorageException(throwable);
+                        return (storageException != null) ? storageException : new RuntimeException(throwable);
+                    } else {
+                        return current;
+                    }
+                });
+
+                log.error("onFailure - Error", throwable);
+                done();
+            }
+
+            private void done() {
+                log.debug("De-registering in-flight requests. unarrived={}",
+                        this.parent.inFlightRequestCount.getUnarrivedParties());
+                this.parent.inFlightRequestCount.arriveAndDeregister();
+                log.debug("Done! arrived={}", this.parent.inFlightRequestCount.getArrivedParties());
+            }
+        }
         private static final int MAX_RETRY_COUNT = 2;
         private static final List<Code> RETRY_ERROR_CODES = ImmutableList.of(Code.INTERNAL, Code.ABORTED,
                 Code.CANCELLED);
 
+        private final Log log = Log.a(this.getClass());
         // Track the number of in-flight requests to wait for all responses before
         // shutting down.
         private final Phaser inFlightRequestCount = new Phaser(1);
+
         private JsonStreamWriter streamWriter;
 
         private final AtomicReference<RuntimeException> error = new AtomicReference<>(null);
@@ -165,81 +190,55 @@ public class DefaultWriteStream implements WriteStream {
                 throw e;
             }
         }
+    }
+    private final Log log = Log.a(this.getClass());
+    private final String datasetsProjectId;
 
-        static class AppendCompleteCallback implements ApiFutureCallback<AppendRowsResponse> {
-            private final Log log = Log.a(this.getClass());
-            private final DataWriter parent;
-            private final AppendContext appendContext;
+    private final BigQueryWriteClient bigQueryWriteClient;
 
-            public AppendCompleteCallback(DataWriter parent, AppendContext appendContext) {
-                this.parent = parent;
-                log.debug("parent={}", this.parent);
+    private final Map<String, DataWriter> dataWriters = new HashMap<>();
 
-                this.appendContext = appendContext;
-            }
+    public DefaultWriteStream(String datasetsProjectId, Credentials credentials) throws IOException {
+        this.datasetsProjectId = datasetsProjectId;
+        log.debug("datasetsProjectId={}", this.datasetsProjectId);
 
-            @Override
-            public void onSuccess(AppendRowsResponse response) {
-                log.debug("onSuccess");
-                done();
-            }
+        BigQueryWriteSettings bigQueryWriteSettings = BigQueryWriteSettings
+                .newBuilder()
+                .setCredentialsProvider(FixedCredentialsProvider.create(credentials))
+                .build();
 
-            @Override
-            public void onFailure(Throwable throwable) {
-                log.debug("onFailure");
+        this.bigQueryWriteClient = BigQueryWriteClient.create(bigQueryWriteSettings);
 
-                if (throwable instanceof Exceptions.AppendSerializtionError) {
-                    Exceptions.AppendSerializtionError appendSerializationError = (Exceptions.AppendSerializtionError) throwable;
-                    log.error("onFailure failedRows={}", appendSerializationError.getRowIndexToErrorMessage());
-                }
-                // If the wrapped exception is a StatusRuntimeException, check the state of the
-                // operation.
-                // If the state is INTERNAL, CANCELLED, or ABORTED, you can retry. For more
-                // information,
-                // see:
-                // https://grpc.github.io/grpc-java/javadoc/io/grpc/StatusRuntimeException.html
-                Status status = Status.fromThrowable(throwable);
-                log.debug("onFailure status={}", status);
+    }
 
-                log.debug("onFailure appendContext.retryCount={}", this.appendContext.retryCount);
-                log.debug("onFailure status.getCode={}", status.getCode());
-                if (this.appendContext.retryCount < MAX_RETRY_COUNT && RETRY_ERROR_CODES.contains(status.getCode())) {
-                    this.appendContext.retryCount++;
-                    try {
-                        log.debug("onFailure - Retrying the append.");
-                        // Since default stream appends are not ordered, we can simply retry the
-                        // appends.
-                        // Retrying with exclusive streams requires more careful consideration.
-                        this.parent.append(this.appendContext);
-                        // Mark the existing attempt as done since it's being retried.
-                        done();
-                        return;
-                    } catch (Exception e) {
-                        // Fall through to return error.
-                        log.error("onFailure - Failed to retry append", e);
-                    }
-                }
+    public void write(String dataset, String table, JSONArray rows)
+            throws DescriptorValidationException, InterruptedException, IOException {
+        log.debug("dataset={}", dataset);
+        log.debug("table={}", table);
 
-                log.debug("onFailure - Verifying that no error occurred in the stream.");
-                parent.error.updateAndGet(current -> {
-                    if (current == null) {
-                        StorageException storageException = Exceptions.toStorageException(throwable);
-                        return (storageException != null) ? storageException : new RuntimeException(throwable);
-                    } else {
-                        return current;
-                    }
-                });
+        TableName parentTable = TableName.of(this.datasetsProjectId, dataset, table);
+        log.debug("parentTable={}", parentTable);
 
-                log.error("onFailure - Error", throwable);
-                done();
-            }
-
-            private void done() {
-                log.debug("De-registering in-flight requests. unarrived={}",
-                        this.parent.inFlightRequestCount.getUnarrivedParties());
-                this.parent.inFlightRequestCount.arriveAndDeregister();
-                log.debug("Done! arrived={}", this.parent.inFlightRequestCount.getArrivedParties());
-            }
+        // If we already have a dataWriter for parentTable, we use it, otherwise create
+        // a new one
+        // and save it in dataWriters
+        DataWriter dataWriter = dataWriters.get(parentTable.toString());
+        if (dataWriter == null) {
+            log.debug("Instantiating data writer for {}", parentTable);
+            dataWriter = new DataWriter();
+            dataWriter.initialize(parentTable, this.bigQueryWriteClient);
+            this.dataWriters.put(parentTable.toString(), dataWriter);
         }
+        AppendContext appendContext = new AppendContext(rows, 0);
+
+        dataWriter.append(appendContext);
+    }
+
+    @Override
+    public void close() {
+        // Close all dataWriters
+        this.dataWriters.forEach((tn, dw) -> dw.cleanup());
+        bigQueryWriteClient.shutdown();
+        bigQueryWriteClient.close();
     }
 }

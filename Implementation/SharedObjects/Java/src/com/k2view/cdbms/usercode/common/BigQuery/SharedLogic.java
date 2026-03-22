@@ -4,35 +4,31 @@
 
 package com.k2view.cdbms.usercode.common.BigQuery;
 
-import java.util.*;
+import static com.k2view.cdbms.shared.utils.UserCodeDescribe.FunctionType.CustomIoProvider;
+import static com.k2view.cdbms.usercode.common.BigQuery.BigQueryParamParser.parseBqValue;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import java.sql.*;
-import java.math.*;
-import java.io.*;
 
-import com.k2view.cdbms.shared.*;
-import com.k2view.cdbms.shared.user.UserCode;
-import com.k2view.cdbms.sync.*;
-import com.k2view.cdbms.lut.*;
-import com.k2view.cdbms.shared.logging.LogEntry.*;
-import com.k2view.cdbms.func.oracle.OracleToDate;
-import com.k2view.cdbms.interfaces.GenericInterface;
 import com.google.cloud.bigquery.Field;
-import com.google.cloud.bigquery.StandardSQLTypeName;
-import com.google.cloud.bigquery.FieldValue.Attribute;
 import com.google.cloud.bigquery.FieldValue;
-import com.k2view.cdbms.func.oracle.OracleRownum;
-import com.k2view.cdbms.shared.utils.UserCodeDescribe.*;
+import com.google.cloud.bigquery.FieldValue.Attribute;
+import com.google.cloud.bigquery.StandardSQLTypeName;
+import com.k2view.cdbms.interfaces.GenericInterface;
+import com.k2view.cdbms.lut.InterfacesManager;
+import com.k2view.cdbms.lut.LUType;
+import com.k2view.cdbms.lut.LudbColumn;
+import com.k2view.cdbms.shared.utils.UserCodeDescribe.out;
+import com.k2view.cdbms.shared.utils.UserCodeDescribe.type;
 import com.k2view.fabric.common.ParamConvertor;
 import com.k2view.fabric.common.io.IoProvider;
-import com.k2view.fabric.fabricdb.datachange.TableDataChange;
-
-import static com.k2view.cdbms.shared.user.ProductFunctions.*;
-import static com.k2view.cdbms.shared.user.UserCode.*;
-import static com.k2view.cdbms.shared.utils.UserCodeDescribe.FunctionType.*;
-import static com.k2view.cdbms.usercode.common.BigQuery.BigQueryParamParser.parseBqValue;
 
 @SuppressWarnings({ "all" })
 public class SharedLogic {
@@ -83,33 +79,6 @@ public class SharedLogic {
         }
 
         return result.toString();
-    }
-
-    /**
-     * Converts INFORMATION_SCHEMA `data_type` into StandardSQLTypeName.
-     */
-    private static StandardSQLTypeName mapToStandardSQLType(String type) {
-        // Remove precision/length specifiers, e.g., "STRING(10)" → "STRING"
-        String baseType = type.replaceAll("\\(.*\\)", "").toUpperCase();
-
-        // Handle special case: ARRAY<TYPE>
-        if (baseType.startsWith("ARRAY<")) {
-            return StandardSQLTypeName.ARRAY;
-        }
-
-        return switch (baseType) {
-            case "STRING" -> StandardSQLTypeName.STRING;
-            case "INT64", "INTEGER" -> StandardSQLTypeName.INT64;
-            case "FLOAT64", "FLOAT" -> StandardSQLTypeName.FLOAT64;
-            case "BOOLEAN", "BOOL" -> StandardSQLTypeName.BOOL;
-            case "DATETIME" -> StandardSQLTypeName.DATETIME;
-            case "TIMESTAMP" -> StandardSQLTypeName.TIMESTAMP;
-            case "DATE" -> StandardSQLTypeName.DATE;
-            case "NUMERIC" -> StandardSQLTypeName.NUMERIC;
-            case "BIGNUMERIC" -> StandardSQLTypeName.BIGNUMERIC;
-            case "BYTES" -> StandardSQLTypeName.BYTES;
-            default -> throw new IllegalArgumentException("Unsupported BigQuery type: " + type);
-        };
     }
 
     public static Iterable<Map<String, Object>> bqParentRowsMapper(
@@ -180,6 +149,33 @@ public class SharedLogic {
         statements.set(last, lastStmt);
 
         return joinStatements(statements);
+    }
+
+    /**
+     * Converts INFORMATION_SCHEMA `data_type` into StandardSQLTypeName.
+     */
+    private static StandardSQLTypeName mapToStandardSQLType(String type) {
+        // Remove precision/length specifiers, e.g., "STRING(10)" → "STRING"
+        String baseType = type.replaceAll("\\(.*\\)", "").toUpperCase();
+
+        // Handle special case: ARRAY<TYPE>
+        if (baseType.startsWith("ARRAY<")) {
+            return StandardSQLTypeName.ARRAY;
+        }
+
+        return switch (baseType) {
+            case "STRING" -> StandardSQLTypeName.STRING;
+            case "INT64", "INTEGER" -> StandardSQLTypeName.INT64;
+            case "FLOAT64", "FLOAT" -> StandardSQLTypeName.FLOAT64;
+            case "BOOLEAN", "BOOL" -> StandardSQLTypeName.BOOL;
+            case "DATETIME" -> StandardSQLTypeName.DATETIME;
+            case "TIMESTAMP" -> StandardSQLTypeName.TIMESTAMP;
+            case "DATE" -> StandardSQLTypeName.DATE;
+            case "NUMERIC" -> StandardSQLTypeName.NUMERIC;
+            case "BIGNUMERIC" -> StandardSQLTypeName.BIGNUMERIC;
+            case "BYTES" -> StandardSQLTypeName.BYTES;
+            default -> throw new IllegalArgumentException("Unsupported BigQuery type: " + type);
+        };
     }
 
     private static List<String> splitStatementsSafely(String sql) {

@@ -23,44 +23,42 @@ import com.k2view.broadway.exception.AbortException;
 import com.k2view.fabric.common.IteratorTranslate;
 import com.k2view.fabric.common.Log;
 import com.k2view.fabric.common.Util;
-import com.k2view.fabric.common.io.IoCommand;
 import com.k2view.fabric.common.io.basic.IoSimpleRow;
 
 public class BigQueryReadIoSession extends BigQuerySession {
-	// private final Log log = Log.a(this.getClass());
-
-	public static final String INPUT_CREDENTIALS_PATH = "credentialsPath";
-	public static final String INPUT_DATASET = "dataset";
-	public static final String INPUT_TABLE = "table";
-	public static final String INPUT_FILTERS = "filter";
-	public static final String INPUT_FIELDS = "fields";
-	public static final String INPUT_LIMIT = "limit";
-	public static final String INPUT_OPERATION = BigQueryIoProvider.OPERATION_PARAM_NAME;
-
-	public BigQueryReadIoSession(Map<String, Object> props) {
-		super(props);
-	}
-
-	@Override
-	public IoCommand.Statement statement() {
-		return new BigQueryReadStatement(() -> {
-			if (aborted) {
-				throw new AbortException("BigQuery Read session aborted!");
+	private class BigQueryReadStatement implements Statement {
+		private class BigQueryReadResult implements Result {
+			@Override
+			public Iterator<Row> iterator() {
+				// Translator that translates each Generic Record read by the bq itr into
+				// IoSimpleRow
+				// The translator class the "next" function of the bq itr, then runs the
+				// translation function on the record to convert it to IoSimpleRow
+				return new IteratorTranslate<>(bigQueryIterator, rec -> {
+					List<Schema.Field> schemaFields = rec.getSchema().getFields();
+					Map<String, Integer> keys = new LinkedHashMap<>();
+					for (int i = 0; i < schemaFields.size(); i++) {
+						keys.put(schemaFields.get(i).name(), i);
+					}
+					Object[] values = new Object[keys.size()];
+					for (int i = 0; i < schemaFields.size(); i++) {
+						values[i] = parseAvroValue(rec.get(i), schemaFields.get(i));
+					}
+					return new IoSimpleRow(values, keys);
+				});
 			}
-		});
-	}
-
-	private class BigQueryReadStatement implements IoCommand.Statement {
+		}
 		private BigQueryIterator bigQueryIterator;
 		private BigQueryReadClient client;
-		private Runnable assertAborted;
+
+		private final Runnable assertAborted;
 
 		BigQueryReadStatement(Runnable assertAborted) {
 			this.assertAborted = assertAborted;
 		}
 
 		@Override
-		public IoCommand.Result execute(Object... objects) throws IOException {
+		public Result execute(Object... objects) throws IOException {
 			@SuppressWarnings("unchecked")
 			Map<String, Object> input = (Map<String, Object>) objects[0];
 			String dataset = (String) input.get(INPUT_DATASET);
@@ -70,6 +68,7 @@ public class BigQueryReadIoSession extends BigQuerySession {
 			@SuppressWarnings("unchecked")
 			Iterable<String> fields = input.get(INPUT_FIELDS) != null ? (Iterable<String>) input.get(INPUT_FIELDS)
 					: new ArrayList<>();
+			log.debug("Executing BigQuery read: dataset={}, table={}, filter='{}', limit={}", dataset, table, filter, limit);
 			BigQueryReadSettings settings = BigQueryReadSettings.newBuilder()
 					.setCredentialsProvider(FixedCredentialsProvider.create(credentials()))
 					.build();
@@ -80,7 +79,8 @@ public class BigQueryReadIoSession extends BigQuerySession {
 			ReadSession session = createBqReadSession(dataset, table, filter, fields);
 			String streamName = session.getStreamsCount() > 0 ? session.getStreams(0).getName() : null;
 			String avroSchemaString = session.getAvroSchema().getSchema();
-			org.apache.avro.Schema avroSchema = new org.apache.avro.Schema.Parser().parse(avroSchemaString);
+			log.debug("Read session created: streams={}, streamName={}", session.getStreamsCount(), streamName);
+			Schema avroSchema = new Schema.Parser().parse(avroSchemaString);
 			GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(avroSchema);
 			// Create Big Query Iterator to read and iterate over the records.
 			this.bigQueryIterator = new BigQueryIterator(this.client, streamName, reader, limit, assertAborted);
@@ -122,28 +122,27 @@ public class BigQueryReadIoSession extends BigQuerySession {
 			return client.createReadSession(builder.build());
 		}
 
-		private class BigQueryReadResult implements Result {
-			@Override
-			public Iterator<IoCommand.Row> iterator() {
-				// Translator that translates each Generic Record read by the bq itr into
-				// IoSimpleRow
-				// The translator class the "next" function of the bq itr, then runs the
-				// translation function on the record to convert it to IoSimpleRow
-				return new IteratorTranslate<>(bigQueryIterator, rec -> {
-					List<Schema.Field> schemaFields = rec.getSchema().getFields();
-					Map<String, Integer> keys = new LinkedHashMap<>();
-					for (int i = 0; i < schemaFields.size(); i++) {
-						keys.put(schemaFields.get(i).name(), i);
-					}
-					Object[] values = new Object[keys.size()];
-					for (int i = 0; i < schemaFields.size(); i++) {
-						values[i] = parseAvroValue(rec.get(i), schemaFields.get(i));
-					}
-					return new IoSimpleRow(values, keys);
-				});
-			}
-		}
+	}
 
+	public static final String INPUT_DATASET = "dataset";
+	public static final String INPUT_TABLE = "table";
+	public static final String INPUT_FILTERS = "filter";
+	public static final String INPUT_FIELDS = "fields";
+	public static final String INPUT_LIMIT = "limit";
+
+	private final Log log = Log.a(this.getClass());
+
+	public BigQueryReadIoSession(Map<String, Object> props) {
+		super(props);
+	}
+
+	@Override
+	public Statement statement() {
+		return new BigQueryReadStatement(() -> {
+			if (aborted) {
+				throw new AbortException("BigQuery Read session aborted!");
+			}
+		});
 	}
 
 	@Override

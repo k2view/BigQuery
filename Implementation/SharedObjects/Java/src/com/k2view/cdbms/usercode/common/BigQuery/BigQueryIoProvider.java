@@ -1,7 +1,5 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.Map;
 
 import com.k2view.fabric.common.Log;
@@ -12,19 +10,19 @@ import com.k2view.fabric.common.io.IoSession;
 
 // The IoProvider is used to handle Big Query Read/Write
 public class BigQueryIoProvider implements IoProvider {
+    public enum Operation {
+        WRITE,
+        READ,
+        COMMAND
+    }
     static final String SESSION_PROP_SNAPSHOT_VIA_STORAGE = "snapshotViaStorageApi";
     static final String SESSION_PROP_CREDENTIALS_FILE = "credentialsFilePath";
     static final String SESSION_PROP_CREDENTIALS_JSON = "credentialsJSON";
     static final String SESSION_PROP_DATASETS_PROJECT = "ProjectId";
     static final String SESSION_PROP_USER_PROJECT = "jobsProjectId";
     static final String SESSION_PROP_INTERFACE = "interface";
-    static final String SESSION_PROP_AUTHENTICATION_METHOD = "authenticationMethod";
 
-    public enum Operation {
-        WRITE,
-        READ,
-        COMMAND
-    }
+    static final String SESSION_PROP_AUTHENTICATION_METHOD = "authenticationMethod";
 
     public static final Operation DEFAULT_OPERATION = Operation.COMMAND;
     public static final String OPERATION_PARAM_NAME = "operation";
@@ -32,8 +30,7 @@ public class BigQueryIoProvider implements IoProvider {
     private final Log log = Log.a(this.getClass());
 
     @Override
-    public IoSession createSession(String ioProviderFunc, Map<String, Object> map)
-            throws FileNotFoundException, IOException {
+    public IoSession createSession(String ioProviderFunc, Map<String, Object> map) {
         String interfaceName = (String) map.get(SESSION_PROP_INTERFACE);
         String datasetsProjectId = ParamConvertor.toString(map.get(SESSION_PROP_DATASETS_PROJECT));
         String userProjectId = ParamConvertor.toString(map.get(SESSION_PROP_USER_PROJECT));
@@ -54,6 +51,7 @@ public class BigQueryIoProvider implements IoProvider {
                 SESSION_PROP_DATASETS_PROJECT, datasetsProjectId,
                 SESSION_PROP_USER_PROJECT, userProjectId);
         if (Operation.READ == operation) {
+            log.debug("Creating a BQ Read IoSession");
             return new BigQueryReadIoSession(sessionProps);
         } else if (Operation.WRITE == operation) {
             log.debug("Creating a BQ Write IoSession");

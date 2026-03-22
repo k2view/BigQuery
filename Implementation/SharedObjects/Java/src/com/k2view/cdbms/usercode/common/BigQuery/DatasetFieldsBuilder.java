@@ -1,13 +1,10 @@
 package com.k2view.cdbms.usercode.common.BigQuery;
 
-import java.sql.Types;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import com.k2view.broadway.metadata.Any;
-import com.k2view.broadway.metadata.ArrayType;
 import com.k2view.broadway.metadata.ObjectType;
 import com.k2view.broadway.metadata.Schema;
 import com.k2view.broadway.metadata.Type;
@@ -19,18 +16,19 @@ import com.k2view.discovery.schema.model.impl.ConcreteField;
 import com.k2view.discovery.schema.model.impl.ConcreteNode;
 import com.k2view.discovery.schema.model.impl.PrimitiveClass;
 import com.k2view.discovery.schema.model.impl.PropertyImpl;
-import com.k2view.discovery.schema.model.types.BooleanClass;
-import com.k2view.discovery.schema.model.types.BytesClass;
-import com.k2view.discovery.schema.model.types.DateClass;
-import com.k2view.discovery.schema.model.types.IntegerClass;
-import com.k2view.discovery.schema.model.types.RealClass;
-import com.k2view.discovery.schema.model.types.StringClass;
-import com.k2view.discovery.schema.model.types.UnknownClass;
 
 public class DatasetFieldsBuilder {
+    record SchemaPropertyContext(
+            ConcreteField field,
+            Schema schema,
+            String idPrefix,
+            boolean isTopLevel,
+            int ordinalPosition) {
+    }
     private static final String CRAWLER = "Crawler";
     private static final String FIELD = "field";
     private static final String ENTITY_NAME = "entityName";
+
     private static final String INNER_CLASS_DELIMITER = ";";
 
     /**
@@ -41,7 +39,7 @@ public class DatasetFieldsBuilder {
      *                       fields and properties.
      * @param objSchema      the {@link ObjectType} schema to process and map into
      *                       nodes.
-     * @param schemaConsumer a {@link Consumer} that allows customization of how
+     * @param schemaContextConsumer a {@link Consumer} that allows customization of how
      *                       properties are added
      *                       to the {@link ConcreteField} or
      *                       {@link ConcreteClassNode}.
@@ -74,7 +72,7 @@ public class DatasetFieldsBuilder {
             schemaConsumer.accept(context);
 
             if (type == Type.array) {
-                processArray(innerField, (ArrayType) innerFieldSchema, isTopLevel, collectionDepth + 1,
+                processArray(innerField, innerFieldSchema, isTopLevel, collectionDepth + 1,
                         classNode.getId(), schemaConsumer, definedByProvider);
             } else if (type == Type.object) {
                 String fieldClass = ComplexFieldPlugin.createClassName(innerFieldName);
@@ -151,37 +149,4 @@ public class DatasetFieldsBuilder {
         return prefix + ":" + node.getId();
     }
 
-    static record SchemaPropertyContext(
-            ConcreteField field,
-            Schema schema,
-            String idPrefix,
-            boolean isTopLevel,
-            int ordinalPosition) {
-    }
-
-    static int getSqlType(Schema schema) {
-        if (schema.equals(Any.ANY)) {
-            return Types.VARCHAR;
-        }
-        switch (schema.type()) {
-            case object:
-                return Types.VARCHAR;
-            case array:
-                return Types.VARCHAR;
-            case string:
-                return Types.VARCHAR;
-            case integer:
-                return Types.INTEGER;
-            case real:
-                return Types.DOUBLE;
-            case date:
-                return Types.DATE;
-            case bool:
-                return Types.BOOLEAN;
-            case blob:
-                return Types.BLOB;
-            default:
-                throw new IllegalArgumentException("Unsupported Type: " + schema);
-        }
-    }
 }

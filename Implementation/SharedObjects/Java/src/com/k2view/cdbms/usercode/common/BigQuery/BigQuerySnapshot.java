@@ -84,6 +84,7 @@ public class BigQuerySnapshot implements SnapshotDataset {
         } else {
             limit = countPercentage;
         }
+        log.debug("Snapshot limit for schema={}, table={}: rowCount={}, percentage={}%, limit={}", schema, table, count, size.getPercentage(), limit);
         return limit;
     }
 
@@ -92,7 +93,9 @@ public class BigQuerySnapshot implements SnapshotDataset {
                 IoCommand.Statement statement = commandSession.prepareStatement(
                         String.format("SELECT row_count FROM %s.%s.__TABLES__ WHERE table_id = ?", datasetsProjectId, schema));
                 IoCommand.Result result = statement.execute(table)) {
-            return (Long) result.firstValue();
+            long rowCount = (Long) result.firstValue();
+            log.debug("Row count for schema={}, table={}: {}", schema, table, rowCount);
+            return rowCount;
         }
     }
 }

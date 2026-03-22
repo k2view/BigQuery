@@ -8,8 +8,8 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import com.google.cloud.bigquery.BigQuery;
@@ -59,6 +59,33 @@ import com.k2view.fabric.common.io.IoCommand.Row;
 import com.k2view.fabric.common.io.IoSession;
 
 public class BigQueryMetadata implements IoMetadata {
+    private record QueryAndParams(String query, List<Object> params) {
+    }
+    private static class AutoCloseableStatementsResults implements AutoCloseable {
+        private final List<IoCommand.Statement> statements;
+        private final List<IoCommand.Result> results;
+
+        public AutoCloseableStatementsResults(List<IoCommand.Statement> statements, List<IoCommand.Result> results) {
+            this.statements = statements;
+            this.results = results;
+        }
+
+        public IoCommand.Result getResult(int index) {
+            return results.get(index);
+        }
+
+        @Override
+        public void close() {
+            for (int i = 0; i < statements.size(); i++) {
+                try {
+                    results.get(i).close();
+                    statements.get(i).close();
+                } catch (Exception e) {
+                    Log.a(this.getClass()).error("Failed to close result/statement", e);
+                }
+            }
+        }
+    }
     private static final String STATUS_CRAWLER = "crawler";
     private static final String SCHEMA = "schema";
     private static final String DATASET = "dataset";
@@ -73,28 +100,9 @@ public class BigQueryMetadata implements IoMetadata {
     // private static final String COLUMN_NAME = "column_name";
     // private static final String CONSTRAINT_NAME = "constraint_name";
     private static final String TABLE_NAME = "table_name";
+
     private static final Map<StandardSQLTypeName, Integer> SQL_TYPE_MAPPING = createBQToSQLTypeMap();
     private static final Map<StandardSQLTypeName, PrimitiveClass> DEFINED_BY_MAPPING = createBQToDefinedByMap();
-
-    private final Log log = Log.a(this.getClass());
-    private IoSession commandSession;
-    private IoSession readSession;
-    private boolean selfCreatedCommandSession;
-    private boolean selfCreatedReadSession;
-    private final String interfaceName;
-
-    private Set<String> schemasExclude = new HashSet<>();
-    private Map<String, List<String>> tablesExclude = new HashMap<>();
-    private Set<String> schemasInclude = new HashSet<>();
-    private Map<String, List<String>> tablesInclude = new HashMap<>();
-    private final String datasetsProjectId;
-    private final String jobUid;
-    private final DataPlatformMetaDataInfo dataPlatformMetaDataInfo;
-    private int totalFields;
-    private boolean aborted;
-    private final boolean snapshotViaStorage;
-    private final BigQuery bqClient;
-
     private static Map<StandardSQLTypeName, Integer> createBQToSQLTypeMap() {
         Map<StandardSQLTypeName, Integer> map = new HashMap<>();
         map.put(StandardSQLTypeName.ARRAY, Types.VARCHAR);
@@ -117,7 +125,6 @@ public class BigQueryMetadata implements IoMetadata {
 
         return map;
     }
-
     private static Map<StandardSQLTypeName, PrimitiveClass> createBQToDefinedByMap() {
         Map<StandardSQLTypeName, PrimitiveClass> map = new HashMap<>();
         map.put(StandardSQLTypeName.BIGNUMERIC, RealClass.REAL);
@@ -139,6 +146,78 @@ public class BigQueryMetadata implements IoMetadata {
 
         return map;
     }
+    private static PrimitiveClass definedBy(String sourceDataType) {
+        if (sourceDataType == null) return UnknownClass.UNKNOWN;
+        sourceDataType = sourceDataType.toUpperCase();
+        return DEFINED_BY_MAPPING.getOrDefault(sourceDataType.startsWith("REPEATED") ? ""
+                : StandardSQLTypeName.valueOf(sourceDataType), UnknownClass.UNKNOWN);
+    }
+    private static ObjectType convertFieldListToObjectType(FieldList fieldList, Field parent) {
+        Properties properties = new Properties();
+        for (Field field : fieldList) {
+            String fieldName = field.getName();
+            Schema fieldSchema = convertFieldToSchema(field);
+            properties.put(fieldName, fieldSchema);
+        }
+        return new ObjectType(properties, parent == null ? null : parent.getType().getStandardType().name());
+    }
+
+    private static Schema convertFieldToSchema(Field field) {
+        StandardSQLTypeName bqType = field.getType().getStandardType();
+        Primitive asPrimitive = mapBigQueryTypeToPrimitive(bqType);
+
+        if (field.getMode() == Field.Mode.REPEATED) {
+            Schema itemSchema;
+            if (bqType == StandardSQLTypeName.STRUCT) {
+                itemSchema = convertFieldListToObjectType(field.getSubFields(), field);
+            } else {
+                itemSchema = asPrimitive;
+            }
+            return new ArrayType(itemSchema, "REPEATED " + bqType.name());
+        } else if (bqType == StandardSQLTypeName.STRUCT) {
+            return convertFieldListToObjectType(field.getSubFields(), field);
+        } else {
+            return asPrimitive;
+        }
+    }
+    private static Primitive mapBigQueryTypeToPrimitive(StandardSQLTypeName bqType) {
+        return switch (bqType) {
+            case ARRAY -> new Primitive(Type.array, bqType.name(), null);
+            case BIGNUMERIC, NUMERIC, FLOAT64 -> new Primitive(Type.real, bqType.name(), null);
+            case BOOL -> new Primitive(Type.bool, bqType.name(), null);
+            case BYTES -> new Primitive(Type.blob, bqType.name(), null);
+            case DATE -> new Primitive(Type.date, bqType.name(), null);
+            case INT64 -> new Primitive(Type.integer, bqType.name(), null);
+            case STRING, DATETIME, GEOGRAPHY, INTERVAL, JSON, TIME, TIMESTAMP, RANGE ->
+                    new Primitive(Type.string, bqType.name(), null);
+            default -> null;
+        };
+    }
+    private final Log log = Log.a(this.getClass());
+    private IoSession commandSession;
+    private IoSession readSession;
+    private boolean selfCreatedCommandSession;
+    private boolean selfCreatedReadSession;
+    private final String interfaceName;
+    private Set<String> schemasExclude = new HashSet<>();
+    private final Map<String, List<String>> tablesExclude = new HashMap<>();
+    private Set<String> schemasInclude = new HashSet<>();
+
+    private final Map<String, List<String>> tablesInclude = new HashMap<>();
+
+    private final String datasetsProjectId;
+
+    private final String jobUid;
+
+    private final DataPlatformMetaDataInfo dataPlatformMetaDataInfo;
+
+    private int totalFields;
+
+    private boolean aborted;
+
+    private final boolean snapshotViaStorage;
+
+    private final BigQuery bqClient;
 
     public BigQueryMetadata(String interfaceName, IoSession commandIoSession, IoSession readSession, BigQuery bqClient,
             String datasetsProjectId,
@@ -164,6 +243,45 @@ public class BigQueryMetadata implements IoMetadata {
             return;
         }
         setIncludeSchema();
+    }
+
+    @Override
+    public DataPlatform getDataPlatform() throws Exception {
+        log.debug("Starting BigQuery metadata crawl: interface={}, datasetsProjectId={}", interfaceName, datasetsProjectId);
+        MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid, 0);
+        MonitorStatusUpdater.getInstance().registerDuration(STATUS_CRAWLER, jobUid);
+        MonitorStatusUpdater.getInstance().updateProgress(STATUS_CRAWLER, jobUid, 0);
+        ConcreteDataPlatform dataPlatform = addPlatformNode(this.interfaceName);
+        addSchemaNodes(dataPlatform);
+        MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid, totalFields);
+        return dataPlatform;
+    }
+
+    @Override
+    public void abort() {
+        this.aborted = true;
+    }
+
+    @Override
+    public BigQuerySnapshot snapshotDataset(String dataset, String schema, SampleSize size, Map<String, Object> map) {
+        return new BigQuerySnapshot(commandSession, readSession, dataset, schema, datasetsProjectId, size,
+                snapshotViaStorage);
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (this.selfCreatedCommandSession) {
+            Util.safeClose(this.commandSession);
+        }
+        if (this.selfCreatedReadSession) {
+            Util.safeClose(this.readSession);
+        }
+    }
+
+    // @Override in 8.3
+    public SnapshotDataset snapshotDataset(String arg0, String arg1, String arg2, SampleSize arg3,
+            Map<String, Object> arg4) {
+        throw new UnsupportedOperationException("Unimplemented method 'snapshotDataset'");
     }
 
     private void assertAborted() {
@@ -194,6 +312,23 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
+    // private QueryAndParams getKeyColumnUsageQueryAndParams(String schemaName) {
+    // String query = String.format(
+    // "SELECT * FROM %s.%s.INFORMATION_SCHEMA.KEY_COLUMN_USAGE",
+    // projectId,
+    // schemaName);
+    // return new QueryAndParams(query, Collections.emptyList());
+    // }
+
+    // private QueryAndParams getConstraintColumnUsageQueryAndParams(String
+    // schemaName) {
+    // String query = String.format(
+    // "SELECT * FROM %s.%s.INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE",
+    // projectId,
+    // schemaName);
+    // return new QueryAndParams(query, Collections.emptyList());
+    // }
+
     private void handleSchema(String schema) {
         DataPlatformMetaDataInfo.MetaDataListInfo tableListInfo = this.dataPlatformMetaDataInfo
                 .getTableListPerSchema(schema);
@@ -206,17 +341,6 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
-    @Override
-    public DataPlatform getDataPlatform() throws Exception {
-        MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid, 0);
-        MonitorStatusUpdater.getInstance().registerDuration(STATUS_CRAWLER, jobUid);
-        MonitorStatusUpdater.getInstance().updateProgress(STATUS_CRAWLER, jobUid, 0);
-        ConcreteDataPlatform dataPlatform = addPlatformNode(this.interfaceName);
-        addSchemaNodes(dataPlatform);
-        MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid, totalFields);
-        return dataPlatform;
-    }
-
     private ConcreteDataPlatform addPlatformNode(String platform) {
         ConcreteDataPlatform dataPlatform = new ConcreteDataPlatform(platform, 1.0, CRAWLER, "", "Data platform",
                 platform);
@@ -226,10 +350,90 @@ public class BigQueryMetadata implements IoMetadata {
         return dataPlatform;
     }
 
-    @Override
-    public void abort() throws Exception {
-        this.aborted = true;
-    }
+    // private void addForeignKeys(ConcreteSchemaNode schemaNode,
+    // List<IoCommand.Row> keyColumnUsage,
+    // List<IoCommand.Row> constraintColumnUsage) {
+    // if (!Util.isEmpty(keyColumnUsage)) {
+
+    // Map<String, List<IoCommand.Row>> foreignKeysByConstraintName = keyColumnUsage
+    // .stream()
+    // .filter(constraint -> constraint.get(POSITION_IN_UNIQUE_CONSTRAINT) != null)
+    // .collect(Collectors.groupingBy(c -> (String) c.get(CONSTRAINT_NAME)));
+    // foreignKeysByConstraintName.keySet().forEach(constraintName -> {
+    // AtomicReference<String> fkTableName = new AtomicReference<>();
+    // foreignKeysByConstraintName.get(constraintName)
+    // .stream()
+    // .filter(r -> r.get(POSITION_IN_UNIQUE_CONSTRAINT) != null)
+    // .findFirst()
+    // .ifPresent(r -> fkTableName.set((String) r.get(TABLE_NAME)));
+    // Map<String, Property> properties = new HashMap<>();
+    // List<IoCommand.Row> constraintUsage = constraintColumnUsage
+    // .stream()
+    // .filter(c -> c.get(CONSTRAINT_NAME).equals(constraintName))
+    // .collect(Collectors.toList());
+    // String pkTableName = (String) constraintUsage.get(0).get(TABLE_NAME);
+    // String fkColumns = foreignKeysByConstraintName.get(constraintName)
+    // .stream()
+    // .map(r -> (String) r.get(COLUMN_NAME))
+    // .collect(Collectors.joining(";"));
+    // String pkColumns = keyColumnUsage.stream()
+    // .filter(r -> r.get(TABLE_NAME).equals(pkTableName) &&
+    // r.get(POSITION_IN_UNIQUE_CONSTRAINT) == null &&
+    // foreignKeysByConstraintName.get(constraintName)
+    // .stream()
+    // .anyMatch(o -> o.get(POSITION_IN_UNIQUE_CONSTRAINT) ==
+    // r.get(ORDINAL_POSITION)))
+    // .sorted((o1, o2) -> {
+    // Long o1OrdinalPositionInFk = getOrdinalPositionInFk(keyColumnUsage,
+    // fkTableName.get(), o1);
+    // Long o2OrdinalPositionInFk = getOrdinalPositionInFk(keyColumnUsage,
+    // fkTableName.get(), o2);
+    // return o1OrdinalPositionInFk.compareTo(o2OrdinalPositionInFk);
+    // })
+    // .map(o -> (String) o.get(COLUMN_NAME))
+    // .collect(Collectors.joining(";"));
+    // properties.put(ConcreteRefersToRelation.FkCategory.fkTableName.name(),
+    // new PropertyImpl(PROPERTY + ":" +
+    // ConcreteRefersToRelation.FkCategory.fkTableName.name(),
+    // ConcreteRefersToRelation.FkCategory.fkTableName.name(), fkTableName.get(),
+    // ConcreteRefersToRelation.FkCategory.fkTableName.name(), 1.0D, CRAWLER, ""));
+    // properties.put(ConcreteRefersToRelation.FkCategory.pkTableName.name(),
+    // new PropertyImpl(PROPERTY + ":" +
+    // ConcreteRefersToRelation.FkCategory.pkTableName.name(),
+    // ConcreteRefersToRelation.FkCategory.pkTableName.name(), pkTableName,
+    // ConcreteRefersToRelation.FkCategory.pkTableName.name(), 1.0D, CRAWLER, ""));
+    // properties.put(ConcreteRefersToRelation.FkCategory.fkColumnName.name(),
+    // new PropertyImpl(PROPERTY + ":" +
+    // ConcreteRefersToRelation.FkCategory.fkColumnName.name(),
+    // ConcreteRefersToRelation.FkCategory.fkColumnName.name(), fkColumns,
+    // ConcreteRefersToRelation.FkCategory.fkColumnName.name(), 1.0D, CRAWLER, ""));
+    // properties.put(ConcreteRefersToRelation.FkCategory.pkColumnName.name(),
+    // new PropertyImpl(PROPERTY + ":" +
+    // ConcreteRefersToRelation.FkCategory.pkColumnName.name(),
+    // ConcreteRefersToRelation.FkCategory.pkColumnName.name(), pkColumns,
+    // ConcreteRefersToRelation.FkCategory.pkColumnName.name(), 1.0D, CRAWLER, ""));
+    // schemaNode
+    // .dataset(fkTableName.get())
+    // .flatMap(contains -> contains.getNode().classNode(fkTableName.get()))
+    // .ifPresent(fkTableClassNode -> schemaNode.dataset(pkTableName)
+    // .flatMap(dataset -> dataset.getNode().classNode(pkTableName))
+    // .ifPresent(pkTableClassNode -> ((ConcreteClassNode) pkTableClassNode)
+    // .refersTo(fkTableClassNode, fkColumns, pkColumns, 1.0D, CRAWLER, "",
+    // constraintName, properties)));
+    // });
+    // }
+    // }
+
+    // private long getOrdinalPositionInFk(List<IoCommand.Row> keyColumnUsage,
+    // String tableName, IoCommand.Row pkRow) {
+    // return ParamConvertor.toInteger(keyColumnUsage
+    // .stream()
+    // .filter(r -> r.get(TABLE_NAME).equals(tableName) &&
+    // r.get(POSITION_IN_UNIQUE_CONSTRAINT) == pkRow.get(ORDINAL_POSITION))
+    // .map(o -> o.get(ORDINAL_POSITION))
+    // .collect(Collectors.toList())
+    // .get(0));
+    // }
 
     private void addSchemaNodes(ConcreteDataPlatform dataPlatform) throws Exception {
         String query = String.format("SELECT * EXCEPT (schema_owner) FROM %s.INFORMATION_SCHEMA.SCHEMATA",
@@ -279,6 +483,7 @@ public class BigQueryMetadata implements IoMetadata {
 
     private void addDatasetNodes(ConcreteSchemaNode schemaNode) throws Exception {
         String schemaName = schemaNode.getName();
+        log.debug("Processing schema={}", schemaName);
         QueryAndParams tablesQueryAndParams = getTablesQueryAndParams(schemaName);
         // QueryAndParams keyColUsageQueryAndParams =
         // getKeyColumnUsageQueryAndParams(schemaName);
@@ -312,20 +517,14 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
-    private static PrimitiveClass definedBy(String sourceDataType) {
-        if (sourceDataType == null) return UnknownClass.UNKNOWN;
-        sourceDataType = sourceDataType.toUpperCase();
-        return DEFINED_BY_MAPPING.getOrDefault(sourceDataType.startsWith("REPEATED") ? ""
-                : StandardSQLTypeName.valueOf(sourceDataType), UnknownClass.UNKNOWN);
-    }
-
     private void processTables(ConcreteSchemaNode schemaNode, IoCommand.Result tables,
-            Map<String, FieldList> tableFields) throws Exception {
+            Map<String, FieldList> tableFields) {
         for (IoCommand.Row row : tables) {
             assertAborted();
             String tableName = row.get(TABLE_NAME).toString();
-            FieldList fields = bqClient.getTable(TableId.of(datasetsProjectId, schemaNode.getName(), tableName))
-                    .getDefinition().getSchema()
+            log.debug("Processing table={} in schema={}", tableName, schemaNode.getName());
+            FieldList fields = Objects.requireNonNull(bqClient.getTable(TableId.of(datasetsProjectId, schemaNode.getName(), tableName))
+                            .getDefinition().getSchema())
                     .getFields();
             tableFields.put(tableName, fields);
             // MonitorStatusUpdater.getInstance().updateTotal(STATUS_CRAWLER, jobUid,
@@ -464,219 +663,7 @@ public class BigQueryMetadata implements IoMetadata {
         return new QueryAndParams(query, params);
     }
 
-    // private QueryAndParams getKeyColumnUsageQueryAndParams(String schemaName) {
-    // String query = String.format(
-    // "SELECT * FROM %s.%s.INFORMATION_SCHEMA.KEY_COLUMN_USAGE",
-    // projectId,
-    // schemaName);
-    // return new QueryAndParams(query, Collections.emptyList());
-    // }
-
-    // private QueryAndParams getConstraintColumnUsageQueryAndParams(String
-    // schemaName) {
-    // String query = String.format(
-    // "SELECT * FROM %s.%s.INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE",
-    // projectId,
-    // schemaName);
-    // return new QueryAndParams(query, Collections.emptyList());
-    // }
-
-    private record QueryAndParams(String query, List<Object> params) {
-    }
-
-    private static class AutoCloseableStatementsResults implements AutoCloseable {
-        private final List<IoCommand.Statement> statements;
-        private final List<IoCommand.Result> results;
-
-        public AutoCloseableStatementsResults(List<IoCommand.Statement> statements, List<IoCommand.Result> results) {
-            this.statements = statements;
-            this.results = results;
-        }
-
-        public IoCommand.Result getResult(int index) {
-            return results.get(index);
-        }
-
-        @Override
-        public void close() {
-            for (int i = 0; i < statements.size(); i++) {
-                try {
-                    results.get(i).close();
-                    statements.get(i).close();
-                } catch (Exception e) {
-                    Log.a(this.getClass()).error("Failed to close result/statement", e);
-                }
-            }
-        }
-    }
-
-    // private void addForeignKeys(ConcreteSchemaNode schemaNode,
-    // List<IoCommand.Row> keyColumnUsage,
-    // List<IoCommand.Row> constraintColumnUsage) {
-    // if (!Util.isEmpty(keyColumnUsage)) {
-
-    // Map<String, List<IoCommand.Row>> foreignKeysByConstraintName = keyColumnUsage
-    // .stream()
-    // .filter(constraint -> constraint.get(POSITION_IN_UNIQUE_CONSTRAINT) != null)
-    // .collect(Collectors.groupingBy(c -> (String) c.get(CONSTRAINT_NAME)));
-    // foreignKeysByConstraintName.keySet().forEach(constraintName -> {
-    // AtomicReference<String> fkTableName = new AtomicReference<>();
-    // foreignKeysByConstraintName.get(constraintName)
-    // .stream()
-    // .filter(r -> r.get(POSITION_IN_UNIQUE_CONSTRAINT) != null)
-    // .findFirst()
-    // .ifPresent(r -> fkTableName.set((String) r.get(TABLE_NAME)));
-    // Map<String, Property> properties = new HashMap<>();
-    // List<IoCommand.Row> constraintUsage = constraintColumnUsage
-    // .stream()
-    // .filter(c -> c.get(CONSTRAINT_NAME).equals(constraintName))
-    // .collect(Collectors.toList());
-    // String pkTableName = (String) constraintUsage.get(0).get(TABLE_NAME);
-    // String fkColumns = foreignKeysByConstraintName.get(constraintName)
-    // .stream()
-    // .map(r -> (String) r.get(COLUMN_NAME))
-    // .collect(Collectors.joining(";"));
-    // String pkColumns = keyColumnUsage.stream()
-    // .filter(r -> r.get(TABLE_NAME).equals(pkTableName) &&
-    // r.get(POSITION_IN_UNIQUE_CONSTRAINT) == null &&
-    // foreignKeysByConstraintName.get(constraintName)
-    // .stream()
-    // .anyMatch(o -> o.get(POSITION_IN_UNIQUE_CONSTRAINT) ==
-    // r.get(ORDINAL_POSITION)))
-    // .sorted((o1, o2) -> {
-    // Long o1OrdinalPositionInFk = getOrdinalPositionInFk(keyColumnUsage,
-    // fkTableName.get(), o1);
-    // Long o2OrdinalPositionInFk = getOrdinalPositionInFk(keyColumnUsage,
-    // fkTableName.get(), o2);
-    // return o1OrdinalPositionInFk.compareTo(o2OrdinalPositionInFk);
-    // })
-    // .map(o -> (String) o.get(COLUMN_NAME))
-    // .collect(Collectors.joining(";"));
-    // properties.put(ConcreteRefersToRelation.FkCategory.fkTableName.name(),
-    // new PropertyImpl(PROPERTY + ":" +
-    // ConcreteRefersToRelation.FkCategory.fkTableName.name(),
-    // ConcreteRefersToRelation.FkCategory.fkTableName.name(), fkTableName.get(),
-    // ConcreteRefersToRelation.FkCategory.fkTableName.name(), 1.0D, CRAWLER, ""));
-    // properties.put(ConcreteRefersToRelation.FkCategory.pkTableName.name(),
-    // new PropertyImpl(PROPERTY + ":" +
-    // ConcreteRefersToRelation.FkCategory.pkTableName.name(),
-    // ConcreteRefersToRelation.FkCategory.pkTableName.name(), pkTableName,
-    // ConcreteRefersToRelation.FkCategory.pkTableName.name(), 1.0D, CRAWLER, ""));
-    // properties.put(ConcreteRefersToRelation.FkCategory.fkColumnName.name(),
-    // new PropertyImpl(PROPERTY + ":" +
-    // ConcreteRefersToRelation.FkCategory.fkColumnName.name(),
-    // ConcreteRefersToRelation.FkCategory.fkColumnName.name(), fkColumns,
-    // ConcreteRefersToRelation.FkCategory.fkColumnName.name(), 1.0D, CRAWLER, ""));
-    // properties.put(ConcreteRefersToRelation.FkCategory.pkColumnName.name(),
-    // new PropertyImpl(PROPERTY + ":" +
-    // ConcreteRefersToRelation.FkCategory.pkColumnName.name(),
-    // ConcreteRefersToRelation.FkCategory.pkColumnName.name(), pkColumns,
-    // ConcreteRefersToRelation.FkCategory.pkColumnName.name(), 1.0D, CRAWLER, ""));
-    // schemaNode
-    // .dataset(fkTableName.get())
-    // .flatMap(contains -> contains.getNode().classNode(fkTableName.get()))
-    // .ifPresent(fkTableClassNode -> schemaNode.dataset(pkTableName)
-    // .flatMap(dataset -> dataset.getNode().classNode(pkTableName))
-    // .ifPresent(pkTableClassNode -> ((ConcreteClassNode) pkTableClassNode)
-    // .refersTo(fkTableClassNode, fkColumns, pkColumns, 1.0D, CRAWLER, "",
-    // constraintName, properties)));
-    // });
-    // }
-    // }
-
-    // private long getOrdinalPositionInFk(List<IoCommand.Row> keyColumnUsage,
-    // String tableName, IoCommand.Row pkRow) {
-    // return ParamConvertor.toInteger(keyColumnUsage
-    // .stream()
-    // .filter(r -> r.get(TABLE_NAME).equals(tableName) &&
-    // r.get(POSITION_IN_UNIQUE_CONSTRAINT) == pkRow.get(ORDINAL_POSITION))
-    // .map(o -> o.get(ORDINAL_POSITION))
-    // .collect(Collectors.toList())
-    // .get(0));
-    // }
-
-    private static ObjectType convertFieldListToObjectType(FieldList fieldList, Field parent) {
-        Properties properties = new Properties();
-        for (Field field : fieldList) {
-            String fieldName = field.getName();
-            Schema fieldSchema = convertFieldToSchema(field);
-            properties.put(fieldName, fieldSchema);
-        }
-        return new ObjectType(properties, parent == null ? null : parent.getType().getStandardType().name());
-    }
-
-    private static Schema convertFieldToSchema(Field field) {
-        StandardSQLTypeName bqType = field.getType().getStandardType();
-        Primitive asPrimitive = mapBigQueryTypeToPrimitive(bqType);
-
-        if (field.getMode() == Field.Mode.REPEATED) {
-            Schema itemSchema;
-            if (bqType == StandardSQLTypeName.STRUCT) {
-                itemSchema = convertFieldListToObjectType(field.getSubFields(), field);
-            } else {
-                itemSchema = asPrimitive;
-            }
-            return new ArrayType(itemSchema, "REPEATED " + bqType.name());
-        } else if (bqType == StandardSQLTypeName.STRUCT) {
-            return convertFieldListToObjectType(field.getSubFields(), field);
-        } else {
-            return asPrimitive;
-        }
-    }
-
-    private static Primitive mapBigQueryTypeToPrimitive(StandardSQLTypeName bqType) {
-        switch (bqType) {
-            case ARRAY:
-                return new Primitive(Type.array, bqType.name(), null);
-            case BIGNUMERIC:
-            case NUMERIC:
-            case FLOAT64:
-                return new Primitive(Type.real, bqType.name(), null);
-            case BOOL:
-                return new Primitive(Type.bool, bqType.name(), null);
-            case BYTES:
-                return new Primitive(Type.blob, bqType.name(), null);
-            case DATE:
-                return new Primitive(Type.date, bqType.name(), null);
-            case INT64:
-                return new Primitive(Type.integer, bqType.name(), null);
-            case STRING:
-            case DATETIME:
-            case GEOGRAPHY:
-            case INTERVAL:
-            case JSON:
-            case TIME:
-            case TIMESTAMP:
-            case RANGE:
-                return new Primitive(Type.string, bqType.name(), null);
-            default:
-                return null;
-        }
-    }
-
     private String idPrefix(String prefix, ConcreteNode node) {
         return prefix + ":" + node.getId();
-    }
-
-    @Override
-    public BigQuerySnapshot snapshotDataset(String dataset, String schema, SampleSize size, Map<String, Object> map) {
-        return new BigQuerySnapshot(commandSession, readSession, dataset, schema, datasetsProjectId, size,
-                snapshotViaStorage);
-    }
-
-    @Override
-    public void close() throws Exception {
-        if (this.selfCreatedCommandSession) {
-            Util.safeClose(this.commandSession);
-        }
-        if (this.selfCreatedReadSession) {
-            Util.safeClose(this.readSession);
-        }
-    }
-
-    // @Override in 8.3
-    public SnapshotDataset snapshotDataset(String arg0, String arg1, String arg2, SampleSize arg3,
-            Map<String, Object> arg4) throws Exception {
-        throw new UnsupportedOperationException("Unimplemented method 'snapshotDataset'");
     }
 }

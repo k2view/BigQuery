@@ -18,118 +18,16 @@ import com.google.cloud.bigquery.FieldValueList;
 import com.google.cloud.bigquery.Job;
 import com.google.cloud.bigquery.JobId;
 import com.google.cloud.bigquery.JobInfo;
-import com.google.cloud.bigquery.JobStatistics;
 import com.google.cloud.bigquery.JobStatistics.QueryStatistics;
 import com.google.cloud.bigquery.QueryJobConfiguration;
 import com.google.cloud.bigquery.QueryJobConfiguration.Builder;
 import com.google.cloud.bigquery.QueryParameterValue;
 import com.google.cloud.bigquery.TableResult;
 import com.k2view.fabric.common.Log;
-import com.k2view.fabric.common.ParamConvertor;
-import com.k2view.fabric.common.Util;
 import com.k2view.fabric.common.io.basic.IoSimpleRow;
 
 public class BigQueryCommandIoSession extends BigQuerySession {
-    private final Log log = Log.a(this.getClass());
-
-    public BigQueryCommandIoSession(Map<String, Object> props) {
-        super(props);
-    }
-
-    @Override
-    public void close() {
-    }
-
-    @Override
-    public void abort() {
-        this.close();
-    }
-
-    @Override
-    public Statement prepareStatement(String command) {
-        return new BigQueryCommandStatement(command);
-    }
-
-    @Override
-    public IoSessionCompartment compartment() {
-        return IoSessionCompartment.SHARED;
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public <T> T getMetadata(Map<String, Object> params) throws Exception {
-        return (T) new BigQueryMetadata(interfaceName, this, null, client(), datasetsProjectId, snapshotViaStorageApi,
-                params);
-    }
-
     public class BigQueryCommandStatement implements Statement {
-        private final String command;
-        private final Builder queryJobBuilder;
-
-        public BigQueryCommandStatement(String command) {
-            this.command = replaceProjectId(command, datasetsProjectId);
-            this.queryJobBuilder = QueryJobConfiguration.newBuilder(this.command);
-        }
-
-        private static String replaceProjectId(String sql, String projectId) {
-            StringBuilder result = new StringBuilder();
-            boolean inString = false;
-            int length = sql.length();
-
-            for (int i = 0; i < length;) {
-                char c = sql.charAt(i);
-
-                if (!inString && sql.startsWith("$projectId.", i)) {
-                    result.append(projectId).append(".");
-                    i += "$projectId.".length();
-                } else {
-                    if (c == '\'') {
-                        inString = !inString;
-                    } 
-                    result.append(c);
-                    i++;
-                }
-            }
-
-            return result.toString();
-        }
-
-        @Override
-        public Result execute(Object... params) throws Exception {
-            log.debug("Executing command with sql={}", command);
-
-            Iterable<QueryParameterValue> values = params == null || params.length == 0 ? null
-                    : Arrays.asList(params).stream().map(BigQueryParamParser::parseToBqParam).toList();
-            queryJobBuilder.setPositionalParameters(values);
-
-            // Create the query job configuration
-            QueryJobConfiguration queryConfig = queryJobBuilder.build();
-
-            // Create the query job and wait for it to finish
-            JobId jobId = JobId.newBuilder().setProject(userProjectId).build();
-            Job queryJob = client().create(
-                    JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
-            long numDmlAffectedRows = -1;
-            queryJob = queryJob.waitFor();
-
-            if (queryJob.getStatistics() instanceof QueryStatistics qs && qs.getNumDmlAffectedRows() != null) {
-                numDmlAffectedRows = qs.getNumDmlAffectedRows();
-            }
-
-            BigQueryError error = queryJob.getStatus().getError();
-            if (queryJob.isDone() && error == null) {
-                log.debug("Command executed successfully with sql={}", command);
-
-                // Save the query results
-                TableResult queryResults = queryJob.getQueryResults();
-                // Return the result
-                return new BigQueryCommandResult(queryResults, numDmlAffectedRows);
-            } else {
-                throw new RuntimeException(
-                        error != null ? error.getMessage() : String.format("Failed to execute sql='%s'", command));
-            }
-        }
-
         private class BigQueryCommandResult implements Result {
             private final Iterator<FieldValueList> iterator;
             private final TableResult queryResult;
@@ -149,7 +47,7 @@ public class BigQueryCommandIoSession extends BigQuerySession {
                     // DDL or DML
                     return Collections.emptyIterator();
                 }
-                return new Iterator<Row>() {
+                return new Iterator<>() {
                     private final Function<Object[], Row> simpleRowFactory = IoSimpleRow
                             .factory(schemaFields.stream().map(Field::getName).toList());
 
@@ -198,6 +96,105 @@ public class BigQueryCommandIoSession extends BigQuerySession {
                 return (int) numDmlAffectedRows;
             }
         }
+        private static String replaceProjectId(String sql, String projectId) {
+            StringBuilder result = new StringBuilder();
+            boolean inString = false;
+            int length = sql.length();
 
+            for (int i = 0; i < length;) {
+                char c = sql.charAt(i);
+
+                if (!inString && sql.startsWith("$projectId.", i)) {
+                    result.append(projectId).append(".");
+                    i += "$projectId.".length();
+                } else {
+                    if (c == '\'') {
+                        inString = !inString;
+                    } 
+                    result.append(c);
+                    i++;
+                }
+            }
+
+            return result.toString();
+        }
+
+        private final String command;
+
+        private final Builder queryJobBuilder;
+
+        public BigQueryCommandStatement(String command) {
+            this.command = replaceProjectId(command, datasetsProjectId);
+            this.queryJobBuilder = QueryJobConfiguration.newBuilder(this.command);
+        }
+
+        @Override
+        public Result execute(Object... params) throws Exception {
+            log.debug("Executing command with sql={}", command);
+
+            Iterable<QueryParameterValue> values = params == null || params.length == 0 ? null
+                    : Arrays.stream(params).map(BigQueryParamParser::parseToBqParam).toList();
+            queryJobBuilder.setPositionalParameters(values);
+
+            // Create the query job configuration
+            QueryJobConfiguration queryConfig = queryJobBuilder.build();
+
+            // Create the query job and wait for it to finish
+            JobId jobId = JobId.newBuilder().setProject(userProjectId).build();
+            Job queryJob = client().create(
+                    JobInfo.newBuilder(queryConfig).setJobId(jobId).build());
+            long numDmlAffectedRows = -1;
+            queryJob = queryJob.waitFor();
+
+            if (queryJob.getStatistics() instanceof QueryStatistics qs && qs.getNumDmlAffectedRows() != null) {
+                numDmlAffectedRows = qs.getNumDmlAffectedRows();
+            }
+
+            BigQueryError error = queryJob.getStatus().getError();
+            if (queryJob.isDone() && error == null) {
+                log.debug("Command executed successfully with sql={}", command);
+
+                // Save the query results
+                TableResult queryResults = queryJob.getQueryResults();
+                // Return the result
+                return new BigQueryCommandResult(queryResults, numDmlAffectedRows);
+            } else {
+                throw new RuntimeException(
+                        error != null ? error.getMessage() : String.format("Failed to execute sql='%s'", command));
+            }
+        }
+
+    }
+
+    private final Log log = Log.a(this.getClass());
+
+    public BigQueryCommandIoSession(Map<String, Object> props) {
+        super(props);
+    }
+
+    @Override
+    public void close() {
+    }
+
+    @Override
+    public void abort() {
+        this.close();
+    }
+
+    @Override
+    public Statement prepareStatement(String command) {
+        return new BigQueryCommandStatement(command);
+    }
+
+    @Override
+    public IoSessionCompartment compartment() {
+        return IoSessionCompartment.SHARED;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T getMetadata(Map<String, Object> params) throws Exception {
+        return (T) new BigQueryMetadata(interfaceName, this, null, client(), datasetsProjectId, snapshotViaStorageApi,
+                params);
     }
 }

@@ -56,6 +56,8 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ### v1.7.1
 - Fix TDM deleteTablePopulation template.
+- Enhanced debug logs.
+- Add caching mechanism for BigQuery client (keyed by project id + auth details).
 
 ### v1.7.0
 - Support query builder, starting from Fabric 8.4.
