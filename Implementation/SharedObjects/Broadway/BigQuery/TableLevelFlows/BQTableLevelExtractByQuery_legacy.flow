@@ -104,17 +104,6 @@ stages:
         out:
           value:
             schema: '#ref'
-      TableCount:
-        parent: Const
-        in:
-          value:
-            const: null
-            external: tableCount
-            schema: integer
-        out:
-          value:
-            external: tableCount
-            schema: integer
   Get Table Schema:
     actors:
       FetchColumnsTypes:
@@ -160,44 +149,134 @@ stages:
         out:
           parsedParamsValues:
             schema: '#ref'
-  Assign values to params:
+  Build SQL Statements:
     actors:
-      ReplacePlaceholders:
-        parent: LuFunction
+      BuildReadStatement:
+        parent: JavaScript
+        height: 195
         in:
-          functionName:
-            const: bqReplaceFilterPlaceholders
-          filter:
+          script:
+            const: |-
+              var statement = "select * from `$projectId." + dataset + "." + table + "`";
+              if (where) {
+                  statement = statement + " where " + where;
+              }
+              statement;
+          dataset:
+            link: Source Schema/value
+            schema: any
+            mandatory: false
+          table:
+            link: Source Table Name/value
+            schema: any
+            mandatory: false
+          where:
             link: Where Claוse/value
-            schema: string
+            schema: any
             mandatory: false
-          values:
-            link: ParseParamsValues/parsedParamsValues
-            schema: '#ref'
+      BuildCountStatement:
+        parent: JavaScript
+        height: 226
+        in:
+          script:
+            const: |-
+              var statement = "select count(*) from `$projectId." + dataset + "." + table + "`";
+              if (where) {
+                  statement = statement + " where " + where;
+              }
+              statement;
+          dataset:
+            link: Source Schema/value
+            schema: any
             mandatory: false
-        out:
-          result:
-            schema: string
-  Extract data:
+          table:
+            link: Source Table Name/value
+            schema: any
+            mandatory: false
+          where:
+            link: Where Claוse/value
+            schema: any
+            mandatory: false
+  Execute Queries:
     transactional: false
     actors:
-      BQStorageRead:
-        parent: BigQueryRead
+      Run Select Statement:
+        parent: DbCommand
         in:
           interface:
             const: null
             link: Source Interface/value
-          filter:
+          sql:
             const: null
-            link: ReplacePlaceholders/result
-          dataset:
-            link: Source Schema/value
-          table:
-            link: Source Table Name/value
+            link: BuildReadStatement/result
+          params:
+            link: ParseParamsValues/parsedParamsValues
         out:
           result:
             external: result
             schema: '#ref'
+      Get count Indicator:
+        parent: MTableLookup
+        in:
+          mtable:
+            const: TableLevelInterfaces
+          interface_name:
+            external: sourceInterface
+            schema: string
+            editor:
+              id: com.k2view.mTableKey
+            mandatory: false
+        out:
+          result:
+            schema: '#ref'
+          count_indicator:
+            schema: any
+  Count Total Records:
+    else: false
+    transactional: false
+    dependsOn: Execute Queries
+    actors:
+      Count Records?:
+        parent: NotEquals
+        condition: result
+        in:
+          a:
+            link: Get count Indicator/count_indicator
+            schema: string
+          b:
+            const: 'false'
+            schema: string
+      Run Count Statement:
+        parent: DbFetchField
+        in:
+          interface:
+            const: null
+            external: sourceInterface
+          sql:
+            const: null
+            link: BuildCountStatement/result
+          params:
+            link: ParseParamsValues/parsedParamsValues
+        out:
+          result:
+            external: tableCount
+            schema: integer
+    split: '--------------------'
+  Do not Count:
+    else: true
+    transactional: false
+    dependsOn: Execute Queries
+    actors:
+      Dummy Count:
+        parent: Const
+        in:
+          value:
+            const: -1
+            schema: integer
+        out:
+          value:
+            external: tableCount
+            schema: integer
 schemas:
   Query params map.in.value:
     type: array
@@ -228,18 +307,33 @@ schemas:
     type: array
     items:
       type: string
-  ReplacePlaceholders.in.values:
-    type: array
-    items:
-      type: string
-  BQStorageRead.out.result:
+  Run Select Statement.out.result:
     type: array
     items:
       type: object
       properties:
-        name:
+        customer_id:
+          type: integer
+        ssn:
           type: string
-        assigned_sex_at_birth: {
+        first_name:
+          type: string
+        last_name:
+          type: string
+  Get count Indicator.out.result:
+    type: array
+    items:
+      type: object
+      properties:
+        interface_name:
+          type: string
+        suppress_indicator:
+          type: string
+        truncate_indicator: {
           }
-        count: {
+        count_indicator: {
+          }
+        order_flow: {
+          }
+        no_schema: {
           }

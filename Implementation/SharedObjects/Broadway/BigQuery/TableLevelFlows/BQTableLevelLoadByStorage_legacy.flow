@@ -65,14 +65,6 @@ stages:
         out:
           result:
             schema: integer
-      Init count:
-        parent: JavaScript
-        in:
-          script:
-            const: flowGlobals.recCount = 0;
-        out:
-          result:
-            schema: integer
   Load Data To Target:
     last: 1
     transactional: true
@@ -120,7 +112,7 @@ stages:
             const: flowGlobals.recCount;
         out:
           result:
-            external: total
+            external: result
             schema: integer
 schemas:
   Table's fields Names .in.value:
