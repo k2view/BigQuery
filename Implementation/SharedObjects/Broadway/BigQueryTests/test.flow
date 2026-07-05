@@ -6,12 +6,21 @@ stages:
         parent: DbCommand
         in:
           interface:
-            const: BigQuery
+            const: BigQuery_RND
           sql:
-            const: select * from $projectId.babynames.names_2014 where count = 1
+            const: select * from $projectId.types_test.SYNTHETIC_ARRAY_DATA_POC_T
         out:
           result:
             schema: '#ref'
+      BigQueryRead1:
+        parent: BigQueryRead
+        in:
+          interface:
+            const: BigQuery_RND
+          dataset:
+            const: types_test
+          table:
+            const: SYNTHETIC_ARRAY_DATA_POC_T
 schemas:
   DbCommand1.out.result:
     type: array

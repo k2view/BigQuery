@@ -54,6 +54,9 @@ Additionally, the connector allows the use of **DbCommand** to execute statement
 
 ## Change Log
 
+### v1.7.4
+- Resolve jackson-databind CVE.
+
 ### v1.7.3
 - Resolve grpc-netty-shaded 1.71.0 CVE by upgrading grpc bom to 1.75.0.
 
