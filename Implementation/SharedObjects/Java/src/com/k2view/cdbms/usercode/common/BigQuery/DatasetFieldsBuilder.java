@@ -16,6 +16,7 @@ import com.k2view.discovery.schema.model.impl.ConcreteField;
 import com.k2view.discovery.schema.model.impl.ConcreteNode;
 import com.k2view.discovery.schema.model.impl.PrimitiveClass;
 import com.k2view.discovery.schema.model.impl.PropertyImpl;
+import com.k2view.fabric.common.Util;
 
 public class DatasetFieldsBuilder {
     record SchemaPropertyContext(
@@ -23,7 +24,8 @@ public class DatasetFieldsBuilder {
             Schema schema,
             String idPrefix,
             boolean isTopLevel,
-            int ordinalPosition) {
+            int ordinalPosition,
+            String fieldPath) {
     }
     private static final String CRAWLER = "Crawler";
     private static final String FIELD = "field";
@@ -49,7 +51,7 @@ public class DatasetFieldsBuilder {
      */
     public static void fromObjectSchema(ConcreteClassNode datasetClass, ObjectType objSchema,
             Consumer<SchemaPropertyContext> schemaContextConsumer, Function<String, PrimitiveClass> definedByProvider) {
-        processObject(datasetClass, objSchema, true, 0, schemaContextConsumer, definedByProvider);
+        processObject(datasetClass, objSchema, true, 0, "", schemaContextConsumer, definedByProvider);
     }
 
     private static void processObject(
@@ -57,6 +59,7 @@ public class DatasetFieldsBuilder {
             ObjectType objType,
             boolean isTopLevel,
             int collectionDepth,
+            String parentFieldPath,
             Consumer<SchemaPropertyContext> schemaConsumer,
             Function<String, PrimitiveClass> definedByProvider) {
         final AtomicInteger i = new AtomicInteger(0);
@@ -65,15 +68,16 @@ public class DatasetFieldsBuilder {
                     innerFieldName);
             String idPrefix = FIELD + ":" + innerField.getId();
             Type type = innerFieldSchema.type();
+            String fieldPath = Util.isEmpty(parentFieldPath) ? innerFieldName : parentFieldPath + "." + innerFieldName;
 
             // Delegate property customization to schemaConsumer
             SchemaPropertyContext context = new SchemaPropertyContext(innerField, innerFieldSchema, idPrefix,
-                    isTopLevel, i.getAndIncrement());
+                    isTopLevel, i.getAndIncrement(), fieldPath);
             schemaConsumer.accept(context);
 
             if (type == Type.array) {
                 processArray(innerField, innerFieldSchema, isTopLevel, collectionDepth + 1,
-                        classNode.getId(), schemaConsumer, definedByProvider);
+                        classNode.getId(), fieldPath, schemaConsumer, definedByProvider);
             } else if (type == Type.object) {
                 String fieldClass = ComplexFieldPlugin.createClassName(innerFieldName);
                 String innerClassId = isTopLevel ? fieldClass : classNode.getId() + INNER_CLASS_DELIMITER + fieldClass;
@@ -84,7 +88,7 @@ public class DatasetFieldsBuilder {
                         definedByProperties(innerFieldName, innerClassId));
                 innerField.addProperty(innerClassId, Category.definedBy.name(), "Data type for field", innerClassId,
                         1.0, CRAWLER, "");
-                processObject(innerClassNode, (ObjectType) innerFieldSchema, false, collectionDepth, schemaConsumer, definedByProvider);
+                processObject(innerClassNode, (ObjectType) innerFieldSchema, false, collectionDepth, fieldPath, schemaConsumer, definedByProvider);
             }
 
             classNode.contains(innerField, 1.0, CRAWLER, "");
@@ -97,6 +101,7 @@ public class DatasetFieldsBuilder {
             boolean isTopLevel,
             int collectionDepth,
             String fieldParentId,
+            String fieldPath,
             Consumer<SchemaPropertyContext> schemaConsumer,
             Function<String, PrimitiveClass> definedByProvider) {
         Schema itemsSchema = fieldSchema.items();
@@ -108,7 +113,7 @@ public class DatasetFieldsBuilder {
             field.addProperty(idPrefix(FIELD, field), Category.definedBy.name(), "Data type for field", fieldType, 1.0,
                     CRAWLER, "");
         } else if (itemsType == Type.array) {
-            processArray(field, itemsSchema.items(), isTopLevel, collectionDepth + 1, fieldParentId, schemaConsumer, definedByProvider);
+            processArray(field, itemsSchema.items(), isTopLevel, collectionDepth + 1, fieldParentId, fieldPath, schemaConsumer, definedByProvider);
         } else if (itemsType == Type.object) {
             String fieldClass = ComplexFieldPlugin.createClassName(field.getId());
             String innerClassId = isTopLevel ? fieldClass : fieldParentId + INNER_CLASS_DELIMITER + fieldClass;
@@ -119,7 +124,7 @@ public class DatasetFieldsBuilder {
             field.definedBy(innerClassNode, 1.0, CRAWLER, "", definedByProperties(field.getName(), innerClassId));
             field.addProperty(innerClassId, Category.definedBy.name(), "Data type for field", definedBy, 1.0, CRAWLER,
                     "");
-            processObject(innerClassNode, (ObjectType) itemsSchema, false, 0, schemaConsumer, definedByProvider);
+            processObject(innerClassNode, (ObjectType) itemsSchema, false, 0, fieldPath, schemaConsumer, definedByProvider);
         }
     }
 

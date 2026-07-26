@@ -485,6 +485,7 @@ public class BigQueryMetadata implements IoMetadata {
         String schemaName = schemaNode.getName();
         log.debug("Processing schema={}", schemaName);
         QueryAndParams tablesQueryAndParams = getTablesQueryAndParams(schemaName);
+        QueryAndParams columnFieldPathsQueryAndParams = getColumnFieldPathsQueryAndParams(schemaName);
         // QueryAndParams keyColUsageQueryAndParams =
         // getKeyColumnUsageQueryAndParams(schemaName);
         // QueryAndParams constraintColUsageQueryAndParams =
@@ -495,19 +496,21 @@ public class BigQueryMetadata implements IoMetadata {
         // keyColUsageQueryAndParams,
         // constraintColUsageQueryAndParams)) {
         try (AutoCloseableStatementsResults closeableResults = execQueriesInParallel(
-                tablesQueryAndParams)) {
+                tablesQueryAndParams, columnFieldPathsQueryAndParams)) {
             IoCommand.Result tables = closeableResults.getResult(0);
+            IoCommand.Result columnFieldPaths = closeableResults.getResult(1);
             // IoCommand.Result keyColumnUsage = closeableResults.getResult(1);
             // IoCommand.Result constraintColumnUsage = closeableResults.getResult(2);
             // Map<String, List<IoCommand.Row>> tableKeyColumnUsageMap = new HashMap<>();
             Map<String, FieldList> tableFields = new HashMap<>();
+            Map<String, Map<String, String>> fieldDescriptionsByTable = buildFieldDescriptionsByTable(columnFieldPaths);
             // keyColumnUsage.forEach(usage -> {
             // String tableName = (String) usage.get(TABLE_NAME);
             // tableKeyColumnUsageMap.computeIfAbsent(tableName, key -> new LinkedList<>());
             // tableKeyColumnUsageMap.get(tableName).add(usage);
             // });
             assertAborted();
-            processTables(schemaNode, tables, tableFields);
+            processTables(schemaNode, tables, tableFields, fieldDescriptionsByTable);
             // processTables(schemaNode, tables, tableKeyColumnUsageMap, tableFields);
             // Add refersTo to every table referenced by a Foreign Key constraint in another
             // one
@@ -517,8 +520,23 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
+    private Map<String, Map<String, String>> buildFieldDescriptionsByTable(IoCommand.Result columnFieldPaths) {
+        Map<String, Map<String, String>> fieldDescriptionsByTable = new HashMap<>();
+        for (Row row : columnFieldPaths) {
+            Object description = row.get("description");
+            if (description == null) {
+                continue;
+            }
+            String tableName = ParamConvertor.toString(row.get(TABLE_NAME));
+            String fieldPath = ParamConvertor.toString(row.get("field_path"));
+            fieldDescriptionsByTable.computeIfAbsent(tableName, key -> new HashMap<>())
+                    .put(fieldPath, ParamConvertor.toString(description));
+        }
+        return fieldDescriptionsByTable;
+    }
+
     private void processTables(ConcreteSchemaNode schemaNode, IoCommand.Result tables,
-            Map<String, FieldList> tableFields) {
+            Map<String, FieldList> tableFields, Map<String, Map<String, String>> fieldDescriptionsByTable) {
         for (IoCommand.Row row : tables) {
             assertAborted();
             String tableName = row.get(TABLE_NAME).toString();
@@ -551,8 +569,9 @@ public class BigQueryMetadata implements IoMetadata {
                     1.0, CRAWLER, "");
             schemaNode.contains(datasetNode, 1.0, CRAWLER, "");
 
+            Map<String, String> fieldDescriptions = fieldDescriptionsByTable.getOrDefault(tableName, Map.of());
             DatasetFieldsBuilder.fromObjectSchema(datasetClassNode, convertFieldListToObjectType(fields, null),
-                    this::schemaContextConsumer,
+                    context -> schemaContextConsumer(context, fieldDescriptions),
                     BigQueryMetadata::definedBy);
             int progress = fields.size();
             totalFields += progress;
@@ -560,12 +579,17 @@ public class BigQueryMetadata implements IoMetadata {
         }
     }
 
-    private void schemaContextConsumer(SchemaPropertyContext context) {
+    private void schemaContextConsumer(SchemaPropertyContext context, Map<String, String> fieldDescriptions) {
         ConcreteField fieldNode = context.field();
         int ordinalPosition = context.ordinalPosition();
         Schema schema = context.schema();
         fieldNode.addProperty(context.idPrefix(), Category.ordinalPosition.name(), "Ordinal position",
                 ordinalPosition, 1.0, CRAWLER, "");
+        String description = fieldDescriptions.get(context.fieldPath());
+        if (!Util.isEmpty(description)) {
+            fieldNode.addProperty(context.idPrefix(), Category.description.name(), "Column description",
+                    description, 1.0, CRAWLER, "");
+        }
         String sourceDataType = schema.description() != null ? schema.description() : "";
         if (context.isTopLevel()) {
             fieldNode.addProperty(context.idPrefix(), Category.sourceDataType.name(), "Column type",
@@ -653,6 +677,21 @@ public class BigQueryMetadata implements IoMetadata {
                 datasetsProjectId,
                 schemaName);
         List<Object> params = new LinkedList<>();
+        query = appendTableFilter(query, schemaName, params);
+        return new QueryAndParams(query, params);
+    }
+
+    private QueryAndParams getColumnFieldPathsQueryAndParams(String schemaName) {
+        String query = String.format(
+                "SELECT table_name, field_path, description FROM %s.%s.INFORMATION_SCHEMA.COLUMN_FIELD_PATHS WHERE description IS NOT NULL",
+                datasetsProjectId,
+                schemaName);
+        List<Object> params = new LinkedList<>();
+        query = appendTableFilter(query, schemaName, params);
+        return new QueryAndParams(query, params);
+    }
+
+    private String appendTableFilter(String query, String schemaName, List<Object> params) {
         if (tablesInclude.containsKey(schemaName)) {
             query = query.concat(" AND table_name IN UNNEST (?)");
             params.add(tablesInclude.get(schemaName));
@@ -660,7 +699,7 @@ public class BigQueryMetadata implements IoMetadata {
             query = query.concat(" AND table_name NOT IN UNNEST (?)");
             params.add(tablesExclude.get(schemaName));
         }
-        return new QueryAndParams(query, params);
+        return query;
     }
 
     private String idPrefix(String prefix, ConcreteNode node) {

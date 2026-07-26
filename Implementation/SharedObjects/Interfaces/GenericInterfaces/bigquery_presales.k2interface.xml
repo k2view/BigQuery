@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<GenericInterface xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="BigQuery" displayName="" enabled="true" version="1.4">
+    <Name>bigquery_presales</Name>
+    <Properties>
+        <Property name="authenticationMethod">
+            <Value>json</Value>
+        </Property>
+        <Property name="OAuthPvtKeyPath">
+            <Value>/opt/apps/fabric/workspace/project/project-resources/keys/k2v-presales-c5665c6be371.json</Value>
+        </Property>
+        <Property name="credentialsJSON">
+            <Value>{   &quot;type&quot;: &quot;service_account&quot;,   &quot;project_id&quot;: &quot;k2v-presales&quot;,   &quot;private_key_id&quot;: &quot;c5665c6be371d1c074c7d1ee3aa13878cd102aed&quot;,   &quot;private_key&quot;: &quot;-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDfj7bmgXg6ASLe\nIgzuvq0olBfC4ouXblu0mqFwbtNshRZmL/85jql++EveeiGYbeGf1LZYgTP0LTT5\nRsYs+zcp9wbxNfJsFwWi52q9Yd/MpbgFJ9awVxzcVZKsJVuQc/9fRtoxIJrFNP/F\nwwr7bjclVJHWwpk5jcyNCFyos5dnAnMXaifiDiNSlykkoUKtizFDSLgN2rJG2j2b\n708ouMHQORHCfRL4O43C2IeRFTK8ED0vhN3bgfT/Jve003H8/t8fgnCO3XLWgZFP\nhpMzDh8tc5SdbVspxAm+j1YCU5XysRjQ72RluD6u1mctVEfDbveuqKd842N0KBU3\n2mtVmCSPAgMBAAECggEAIW+IvFAldLoSG++IcvXjnKEMLg0x3B5uQBmsXCNxzYDY\nyRm+mJN5+CUXO8PqXbYkENfVxHDhHfuGOQ4DulssH0OfLy47/pHcOZwA09LdOj9C\nwXVO36V3tIsRL7E6pjp4ZCiK84lb0cjLxCkX7bjIg0sdsLqpWKPuMYhMS2g+FEf6\n7/rHLTEh3VguxhXiYoP315In83ZkXLodWB/tv6RF7uRFf3lQICQYhpBw406VtddJ\nNRbE/X1OCwH/XTTeB/XhYvw5hG3kA3RuZNHlxatKSeTB6ndK0Xl+wnA7iC9am2xi\ntQXYaHWIrS9N0cTLfuejhDrrAA1jQLqQQiq6wH9cUQKBgQDzXfCQk/mrKfRWenRW\npHuqo7CFfS/EA4IF0XgiwzlgojFZJgE7yD0BdewFEnnvAK3ZQ+nMvxlWJp8Ueemw\nRuJOfIadWrf4VPHV8uaXIrh52h8GvZNS06kK6Tmui8Rx2H8YhPIj18CdBxVcaN2E\nKO2KOVF/lsi1HBWd6JuFzEA0VwKBgQDrKpUCyAjGll2ArF6e+hGCnQAL5yuXtHMB\nIxXjHKLv9DVQIOO7JqfcxS5Fk5fRCWPlKybFHkOY7SDOuxpbKL7ue28LZrnwa30j\nyt7BwOzsIqUmkCs+UdTRpqLDlNDDeu/FbMU1hlngCohrCVjgz7Ib9wOC4tRPp43U\nl7twJ/+uiQKBgQCmDp1NKYscfb4ZG+kyDX3Mi3CxRSBIkVQxACMHJUqLY2Bkwgfp\ncNIfowTu2RKWQFJfg3WOnX5+SFAXuq/39gYJI/L+f540NlHleJ5a1fgmPO0avlQ+\nGeqoZUdUkE30mJLwehZ22oq1GtY6fdtYiEy9Gis/8fT1jzo4yzUDcMEGdQKBgGIU\nN2Oak/ZnHgYdXbVGLGliG3PbbRXvX4uY23cGKXqUSmvp27DhVV9BKaRBAy9ekDgz\nAA90KNMuCuHNrRdZ7g++kTibFm+MFPwJj1AVq3pslJ55wF9Ud8MckYOqnEr7Cec4\nDyPcrb1AB1dE5bmVRf5dziwXeF7kTcXdpoIHXJ6pAoGBAJuHkHBu8Uob6beiKeTd\n9TBi1aPp2z+yxFizCAF4VVrGTXHtAYUTX4C/HOPIXX1X0OxqLftky9BHFnzasAn+\nl6CAvdD5ij6Pscg71tqhSrx4JL+815Al8r1RFRMLMFBBytReBteZxg7ZaQoKh9kn\nVWJ3iaT9bNJ8VJUw+cLS9zMX\n-----END PRIVATE KEY-----\n&quot;,   &quot;client_email&quot;: &quot;gcs-smcveigh@k2v-presales.iam.gserviceaccount.com&quot;,   &quot;client_id&quot;: &quot;104555194926040024052&quot;,   &quot;auth_uri&quot;: &quot;https://accounts.google.com/o/oauth2/auth&quot;,   &quot;token_uri&quot;: &quot;https://oauth2.googleapis.com/token&quot;,   &quot;auth_provider_x509_cert_url&quot;: &quot;https://www.googleapis.com/oauth2/v1/certs&quot;,   &quot;client_x509_cert_url&quot;: &quot;https://www.googleapis.com/robot/v1/metadata/x509/gcs-smcveigh%40k2v-presales.iam.gserviceaccount.com&quot;,   &quot;universe_domain&quot;: &quot;googleapis.com&quot; }</Value>
+        </Property>
+        <Property name="ProjectId">
+            <Value>k2v-presales</Value>
+        </Property>
+        <Property name="jobsProjectId">
+            <Value>k2v-presales</Value>
+        </Property>
+        <Property name="snapshotViaStorageApi">
+            <Value>false</Value>
+        </Property>
+        <Property name="ioprovider">
+            <Value>bigQueryIoProvider</Value>
+        </Property>
+    </Properties>
+</GenericInterface>
