@@ -48,6 +48,7 @@
         "watch": "webpack --watch",
         "package": "webpack --mode production --devtool hidden-source-map",
         "lint": "eslint src --ext ts",
+        "test": "mvn -f ../../pom.xml test",
         "fabric-lib-prepare": "node scripts/createSymlinks.js scripts/artifactsSourcePaths.txt false && node scripts/createSymlinks.js scripts/templatesSourcePaths.txt true",
         "fabric-lib-package": "npm run fabric-lib-prepare && vsce package",
         "fabric-lib-publish": "npm run fabric-lib-prepare && npx ovsx publish -p $k2view_ovsx_token -r $k2view_ovsx_url --baseContentUrl $k2view_ovsx_url",

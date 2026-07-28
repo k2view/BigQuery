@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.k2view.cdbms</groupId>
+  <artifactId>k2-unit-tests</artifactId>
+  <version>1.0.0</version>
+
+  <!--
+    Generated and maintained by the k2-unit-tests-setup skill (plugins/k2-unit-tests).
+    See plugins/k2-unit-tests/skills/k2-unit-tests-setup/references/mechanics.md for why this pom
+    bypasses maven-compiler-plugin in favor of a hand-rolled Ant javac task.
+
+    This project has no build tool and its Java dependencies are pre-resolved jars under lib/ and
+    ${env.FABRIC_HOME}/fabric/lib/fabric/, not Maven coordinates - so the classpath for both compiling
+    and running tests is built from those two wildcard directories, not from <dependency> entries
+    (except for the test framework itself, below).
+  -->
+
+  <properties>
+    <maven.compiler.release>21</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <junit.version>5.10.3</junit.version>
+    <mockito.version>4.11.0</mockito.version>
+
+    <!-- K2-UNIT-TESTS-ROOT: Implementation/SharedObjects/Java -->
+    <k2.mainSrcDirs>${project.basedir}/Implementation/SharedObjects/Java/src</k2.mainSrcDirs>
+    <k2.testSrcDirs>${project.basedir}/Implementation/SharedObjects/Java/test</k2.testSrcDirs>
+    <k2.libClasspath>${project.basedir}/lib/*:${env.FABRIC_HOME}/fabric/lib/fabric/*</k2.libClasspath>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <sourceDirectory>Implementation/SharedObjects/Java/src</sourceDirectory>
+    <testSourceDirectory>Implementation/SharedObjects/Java/test</testSourceDirectory>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.6.1</version>
+        <executions>
+          <execution>
+            <id>k2-unit-tests-build-test-classpath</id>
+            <phase>generate-sources</phase>
+            <goals><goal>build-classpath</goal></goals>
+            <configuration>
+              <includeScope>test</includeScope>
+              <outputProperty>k2.mavenTestClasspath</outputProperty>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <executions>
+          <execution>
+            <id>default-compile</id>
+            <phase>none</phase>
+          </execution>
+          <execution>
+            <id>default-testCompile</id>
+            <phase>none</phase>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-antrun-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>k2-unit-tests-compile-main</id>
+            <phase>compile</phase>
+            <goals><goal>run</goal></goals>
+            <configuration>
+              <target>
+                <mkdir dir="${project.build.outputDirectory}"/>
+                <javac destdir="${project.build.outputDirectory}"
+                       srcdir="${k2.mainSrcDirs}"
+                       includes="com/k2view/cdbms/usercode/common/BigQuery/**/*.java"
+                       classpath="${k2.libClasspath}"
+                       includeantruntime="false"
+                       fork="yes"/>
+              </target>
+            </configuration>
+          </execution>
+          <execution>
+            <id>k2-unit-tests-compile-tests</id>
+            <phase>test-compile</phase>
+            <goals><goal>run</goal></goals>
+            <configuration>
+              <target>
+                <mkdir dir="${project.build.testOutputDirectory}"/>
+                <javac destdir="${project.build.testOutputDirectory}"
+                       srcdir="${k2.testSrcDirs}"
+                       includes="**/*.java"
+                       classpath="${project.build.outputDirectory}:${k2.mavenTestClasspath}:${k2.libClasspath}"
+                       includeantruntime="false"
+                       fork="yes"/>
+              </target>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.2.5</version>
+        <configuration>
+          <useManifestOnlyJar>false</useManifestOnlyJar>
+          <useSystemClassLoader>false</useSystemClassLoader>
+          <additionalClasspathElements>
+            <additionalClasspathElement>${project.basedir}/lib/*</additionalClasspathElement>
+            <additionalClasspathElement>${env.FABRIC_HOME}/fabric/lib/fabric/*</additionalClasspathElement>
+          </additionalClasspathElements>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

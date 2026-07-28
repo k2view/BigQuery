@@ -21,3 +21,4 @@ LocalDeploy
 LocalDeployWeb
 extensions/*/artifacts
 extensions/*/templates
+target
